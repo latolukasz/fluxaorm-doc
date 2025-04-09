@@ -624,7 +624,7 @@ This will create a copy of the category entity, assign a new value to its Name f
 
 ## Deleting Entities
 
-In BeORM, entities can be deleted from a MySQL table using the `engine.Delete()` method. For example:
+In BeeORM, entities can be deleted from a MySQL table using the `engine.Delete()` method. For example:
 
 <code-group>
 <code-block title="code">
