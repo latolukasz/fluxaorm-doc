@@ -5,8 +5,8 @@ import { searchPlugin } from '@vuepress/plugin-search'
 
 export default defineUserConfig({
   lang: 'en-US',
-  title: 'BeeORM: A Golang ORM for MySQL and Redis',
-  description: 'BeeORM is a Golang ORM designed for high-traffic applications that require optimal performance and scalability. Our ORM allows developers to easily build and maintain applications that can handle large amounts of data and traffic, using the power and simplicity of Golang, along with the reliability and speed of MySQL and Redis',
+  title: 'FluxaORM: A Golang ORM for MySQL and Redis',
+  description: 'FluxaORM is a Golang ORM designed for high-traffic applications that require optimal performance and scalability. Our ORM allows developers to easily build and maintain applications that can handle large amounts of data and traffic, using the power and simplicity of Golang, along with the reliability and speed of MySQL and Redis',
   head: [
     ['link', { rel: 'icon', href: '/favicon.ico' }]
   ],
@@ -19,7 +19,7 @@ export default defineUserConfig({
   theme: defaultTheme({
     logo: '/logo-small.svg',
     logoDark: '/logo-small-dark.svg',
-    repo: 'https://github.com/latolukasz/beeorm/tree/v3',
+    repo: 'https://github.com/latolukasz/orm',
     docsRepo: 'https://github.com/latolukasz/beeorm-doc',
     docsBranch: 'v3',
     docsDir: 'docs',

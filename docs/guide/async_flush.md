@@ -1,6 +1,6 @@
 # Async flush
 
-In the [previous chapter](/guide/crud.html), you learned how to add, update, and delete entities using the `Flush()` method of the `beeorm.ORM`. 
+In the [previous chapter](/guide/crud.html), you learned how to add, update, and delete entities using the `Flush()` method of the `orm.ORM`. 
 `Flush()` executes both MySQL and cache (Redis, local cache) queries. Redis operations usually take a few milliseconds, and local cache changes are almost instantaneous. 
 However, SQL queries can take a significant amount of time, typically more than 100 milliseconds. In high-traffic applications, SQL queries 
 often become a performance bottleneck.
@@ -14,7 +14,7 @@ See the example below:
 ```go{23}
 package main
 
-import "github.com/latolukasz/beeorm/v3"
+import "github.com/latolukasz/orm"
 
 type CategoryEntity struct {
 	ID          uint64      `orm:"localCahe;redisCache"`
@@ -22,9 +22,9 @@ type CategoryEntity struct {
 }
 
 func main() {
-    registry := beeorm.NewRegistry()
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", beeorm.DefaultPoolCode, nil) 
-    registry.RegisterRedis("localhost:6379", 0, beeorm.DefaultPoolCode, nil)
+    registry := orm.NewRegistry()
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil) 
+    registry.RegisterRedis("localhost:6379", 0, orm.DefaultPoolCode, nil)
     registry.RegisterEntity(CategoryEntity{}) 
     engine, err := registry.Validate()
     if err != nil {
@@ -32,7 +32,7 @@ func main() {
     }
     orm := engine.NewORM(context.Background())
     
-    categoryCars := beeorm.NewEntity[CategoryEntity](orm)
+    categoryCars := orm.NewEntity[CategoryEntity](orm)
     categoryCars.Name = "Cars"
     err := orm.FlushAsync()
 }  
@@ -53,7 +53,7 @@ The example below illustrates the integration of the async buffer consumption in
 ```go{13-15,18}
 func main() {
 
-    registry := beeorm.NewRegistry()
+    registry := orm.NewRegistry()
     engine, err := registry.Validate()
     if err != nil {
         panic(err)
@@ -63,7 +63,7 @@ func main() {
     ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
     defer stop()
     
-    stopBuffer := beeorm.ConsumeAsyncBuffer(orm, func(err error) {
+    stopBuffer := orm.ConsumeAsyncBuffer(orm, func(err error) {
         // Report the error in the application's error log
     })
     
@@ -80,19 +80,19 @@ When you use `FlushAsync()` to commit your changes, it's essential to execute th
 as demonstrated below:
 
 ```go
-err := beeorm.ConsumeAsyncFlushEvents(orm, true)
+err := orm.ConsumeAsyncFlushEvents(orm, true)
 ```
 
 This function operates in two modes: blocking and non-blocking. By setting the second argument as true, the function halts the code's execution and awaits new SQL queries that have been 
 pushed to the Redis list via `FlushAsync()`, subsequently executing them.
 
-To halt its execution, it's necessary to cancel the context used in creating `beeorm.ORM`:
+To halt its execution, it's necessary to cancel the context used in creating `orm.ORM`:
 
 ```go
  ctx, close := context.WithCancel()
  orm := engine.NewORM(ctx)
  go func() {
-    err := beeorm.ConsumeAsyncFlushEvents(orm, true)
+    err := orm.ConsumeAsyncFlushEvents(orm, true)
  }()
  close() // this will stop execution of ConsumeAsyncFlushEvents
 ```
@@ -122,9 +122,9 @@ type UserEntity struct {
 	Name string `orm:"required;unique=Name"`
 }
 
-category := beeorm.NewEntity[CategoryEntity](orm) // ID 1
+category := orm.NewEntity[CategoryEntity](orm) // ID 1
 category.Name = "cars"
-user := beeorm.NewEntity[UserEntity](orm) // ID 1
+user := orm.NewEntity[UserEntity](orm) // ID 1
 categoryCars.Name = "Tom"
 c.FlushAsync()
 
@@ -132,18 +132,18 @@ c.FlushAsync()
 // but before ConsumeAsyncFlushEvents() consumes events:
 
 // Returns valid data because it's saved in Redis
-category, found := beeorm.GetByID[CategoryEntity](orm, 1)
-categories := beeorm.GetByIDs[CategoryEntity](orm, 1)
-category, found := beeorm.GetByUniqueIndex[CategoryEntity](orm, "Name", "cars")
+category, found := orm.GetByID[CategoryEntity](orm, 1)
+categories := orm.GetByIDs[CategoryEntity](orm, 1)
+category, found := orm.GetByUniqueIndex[CategoryEntity](orm, "Name", "cars")
 // Returns nil because UserEntity does not use any cache
-user, found := beeorm.GetByID[UserEntity](orm, 1)
-users := beeorm.GetByIDs[UserEntity](orm, 1)
+user, found := orm.GetByID[UserEntity](orm, 1)
+users := orm.GetByIDs[UserEntity](orm, 1)
 // Returns valid data because unique indexes are always cached in Redis
-user, found := beeorm.GetByUniqueIndex[UserEntity](orm, "Name", "Tom")
+user, found := orm.GetByUniqueIndex[UserEntity](orm, "Name", "Tom")
 
 // Returns nil because search functions never use cache
-category, found = SearchOne[CategoryEntity](orm, beeorm.NewWhere("Name = ?", "cars"))
-user, found = SearchOne[UserEntity](orm, beeorm.NewWhere("Name = ?", "Tom"))
+category, found = SearchOne[CategoryEntity](orm, orm.NewWhere("Name = ?", "cars"))
+user, found = SearchOne[UserEntity](orm, orm.NewWhere("Name = ?", "Tom"))
 ```
 
 Below, you'll find a list of functions that return updated entity data when `FlushAsync()` is executed:
@@ -164,7 +164,7 @@ In cases of temporary errors, the `ConsumeAsyncFlushEvents()` function will retu
 
 ```go
 for {
-    err := beeorm.ConsumeAsyncFlushEvents(orm, true)
+    err := orm.ConsumeAsyncFlushEvents(orm, true)
     if err != nil {
         // ... report the error in your error log
         time.Sleep(time.Second * 10)
@@ -202,7 +202,7 @@ The `ReadAsyncFlushEvents` function employs a [distributed lock](/guide/distribu
 With `ReadAsyncFlushEvents()`, you can efficiently monitor the status of pending SQL queries that await processing by the `ConsumeAsyncFlushEvents()` function. You can read these queries and, when necessary, remove them from the Redis list. Here's how you can use it:
 
 ```go
-for _, eventList := range beeorm.ReadAsyncFlushEvents(orm) {
+for _, eventList := range orm.ReadAsyncFlushEvents(orm) {
     eventList.EventsCount() // Number of pending SQL queries to be executed
     for _, event := range eventList.Events(100) { // Retrieve the 100 oldest events
         event.SQL // MySQL query, for example, "INSERT INTO TableName(ID, Name) VALUES(?,?)"
@@ -215,7 +215,7 @@ for _, eventList := range beeorm.ReadAsyncFlushEvents(orm) {
 This function not only allows you to inspect pending SQL queries but also provides a way to manage them effectively. You can similarly check the status of SQL queries that were skipped due to non-temporary errors, read these queries, and remove them from the Redis list using the same function:
 
 ```go
-for _, eventList := range beeorm.ReadAsyncFlushEvents(orm) {
+for _, eventList := range orm.ReadAsyncFlushEvents(orm) {
     eventList.ErrorsCount() // Number of problematic SQL queries that were skipped and moved to the errors list
     for _, event := range eventList.Errors(100, false) { // Retrieve the 100 oldest SQL queries from the error list
         event.SQL // MySQL query, for example, "INSERT INTO TableName(ID, Name) VALUES(?,?)"

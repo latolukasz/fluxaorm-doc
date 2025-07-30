@@ -15,11 +15,11 @@ type UserEntity struct {
 
 ## Enabling log table
 
-To enable log table simply register `beeorm.LogEntity` with a `UserEntity` attribute:
+To enable log table simply register `orm.LogEntity` with a `UserEntity` attribute:
 
 ```go{2}
-registry := beeorm.NewRegistry()
-registry.RegisterEntity(beeorm.LogEntity[UserEntity]{})
+registry := orm.NewRegistry()
+registry.RegisterEntity(orm.LogEntity[UserEntity]{})
 ```
 Now when you run [database schema update](/guide/schema_update.html#updating-database-schema)
 new table will be created:
@@ -45,7 +45,7 @@ You can define which MySQL database (data pool) should be used to store this tab
 
 ```go{2}
 type UserEntity struct {
-    beeorm.ORM `orm:"log-pool=logs"`
+    orm.ORM `orm:"log-pool=logs"`
     ID         uint
     Name       string
     Age        uint8
@@ -62,7 +62,7 @@ server to store all log tables (see example above).
 Now it's time to save some data and see our first logs:
 
 ```go
-user := beeorm.NewEntity[UserEntity](orm)
+user := orm.NewEntity[UserEntity](orm)
 user.Name = "Adam"
 user.Age = 39
 c.Flush()
@@ -99,7 +99,7 @@ Log tables has 6 columns:
 Now let's update our user:
 
 ```go
-user = beeorm.EditEntity(orm, user)
+user = orm.EditEntity(orm, user)
 user.Age = 18
 c.Flush()
 ```
@@ -119,7 +119,7 @@ SELECT * FROM _LogEntity_default_UserEntity WHERE ID = 2\G;
 At the end we will remove our entity:
 
 ```go
-beeorm.DeleteEntity(orm, entity)
+orm.DeleteEntity(orm, entity)
 c.Flush()
 ```
 
@@ -137,11 +137,11 @@ SELECT * FROM _LogEntity_default_UserEntity WHERE ID = 3\G;
 
 ## Log meta data
 
-You can  register log meta data in `beeorm.ORM`:
+You can  register log meta data in `orm.ORM`:
 
 ```go{1}
 c.SetMetaData("ip", "213.22.11.24")
-user := beeorm.NewEntity[UserEntity](orm)
+user := orm.NewEntity[UserEntity](orm)
 user.Name = "Tom"
 user.Age = 20
 c.Flush()

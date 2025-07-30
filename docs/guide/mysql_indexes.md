@@ -16,7 +16,7 @@ type PersonEntity struct {
     Name    string
     Age     uint8 `orm:"index=age"` 
     Email   string `orm:"unique=email;required"` 
-    Mother  beeorm.Reference[PersonEntity]
+    Mother  orm.Reference[PersonEntity]
 }
 ```
 

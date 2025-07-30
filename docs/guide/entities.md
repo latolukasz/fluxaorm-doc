@@ -9,7 +9,7 @@ To define an Entity struct, you must follow one rule - the first field of the st
 Here is an example of a simple Entity struct:
 
 ```go
-import "github.com/latolukasz/beeorm/v3"
+import "github.com/latolukasz/orm"
 
 type SimpleEntity struct {
 	ID uint64
@@ -18,10 +18,10 @@ type SimpleEntity struct {
 
 ## Registering Entity
 
-In order to use an entity in beeorm, it must be registered in the Registry:
+In order to use an entity in orm, it must be registered in the Registry:
 
 ```go{2}
-registry := beeorm.NewRegistry()
+registry := orm.NewRegistry()
 registry.RegisterEntity(&entity.UserEntity{}) 
 ```
 
@@ -31,12 +31,12 @@ registry.RegisterEntity(&entity.UserEntity{})
 
 By default, Entity is connected to `default` [data pool](/guide/datapools.html#mysql-pool).
 You can define different pool with special setting **mysql=pool_name** put in tag `orm` 
-for `beeorm.ORM` field:
+for `orm.ORM` field:
 
 ```go{6,10}
 package main
 
-import "github.com/latolukasz/beeorm/v3"
+import "github.com/latolukasz/orm"
 
 type UserEntity struct {
 	ID  uint64  // equal to `orm:"mysql=default"`
@@ -47,8 +47,8 @@ type OrderEntity struct {
 }
 
 func main() {
-    registry := beeorm.NewRegistry()
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", beeorm.DefaultPoolCode, nil)
+    registry := orm.NewRegistry()
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
     registry.RegisterMySQL("user:password@tcp(localhost:3307)/db", "sales", nil)
     registry.RegisterEntity(OrderEntity{}) 
 }  
@@ -56,7 +56,7 @@ func main() {
 
 ### Redis pool
 
-To protect MySQL from unnecessary queries, entities can be automatically cached in Redis. To enable Redis cache for an entity, use the setting redisCache=pool_name in the orm tag of the beeorm.ORM field. This specifies which Redis server or Sentinel pool should be used to store the data.
+To protect MySQL from unnecessary queries, entities can be automatically cached in Redis. To enable Redis cache for an entity, use the setting redisCache=pool_name in the orm tag of the orm.ORM field. This specifies which Redis server or Sentinel pool should be used to store the data.
 
 For a pool with the name default, you can use the short version orm:"redisCache" without specifying the pool name.
 
@@ -65,7 +65,7 @@ Here is an example in Go code:
 ```go{6,10}
 package main
 
-import "github.com/latolukasz/beeorm/v3"
+import "github.com/latolukasz/orm"
 
 type UserEntity struct {
 	ID uint64 `orm:"redisCache"`
@@ -76,9 +76,9 @@ type OrderEntity struct {
 }
 
 func main() {
-    registry := beeorm.NewRegistry()
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", beeorm.DefaultPoolCode, nil)
-    RegisterRedis("localhost:6379", 0, beeorm.DefaultPoolCode, nil)
+    registry := orm.NewRegistry()
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
+    RegisterRedis("localhost:6379", 0, orm.DefaultPoolCode, nil)
     RegisterRedis("localhost:6390", 0, "sales", nil)
     registry.RegisterEntity(UserEntity{}, &OrderEntity{}) 
 }  
@@ -98,7 +98,7 @@ Optionally you can define local cache size.
 ```go{6,10}
 package main
 
-import "github.com/latolukasz/beeorm/v3"
+import "github.com/latolukasz/orm"
 
 type CategoryEntity struct {
 	ID uint16 `orm:"localCache"` // equal to localcache=0
@@ -109,8 +109,8 @@ type BrandEntity struct {
 }
 
 func main() {
-    registry := beeorm.NewRegistry()
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", beeorm.DefaultPoolCode, nil)
+    registry := orm.NewRegistry()
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
     registry.RegisterEntity(CategoryEntity{}, &BrandEntity{}) 
 }  
 ```

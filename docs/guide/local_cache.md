@@ -6,8 +6,8 @@ First, we need to configure the data pools and engine. In this example, we will 
 without any limit, and `test`, which can hold up to 100 elements:
 
 ```go
-registry := beeorm.NewRegistry()
-registry.RegisterLocalCache(beeorm.DefaultPoolCode, 0)
+registry := orm.NewRegistry()
+registry.RegisterLocalCache(orm.DefaultPoolCode, 0)
 registry.RegisterLocalCache("test", 100)
 registry.RegisterLocalCache(100, "test")
 engine, err := registry.Validate()
@@ -22,7 +22,7 @@ orm := engine.NewORM(context.Background())
 Now we are ready to use the local cache data pool to execute queries. This pool also provides a few useful methods:
 
 ```go
-cache := engine.LocalCache(beeorm.DefaultPoolCode) // or c.Engine().LocalCache(beeorm.DefaultPoolCode)
+cache := engine.LocalCache(orm.DefaultPoolCode) // or c.Engine().LocalCache(orm.DefaultPoolCode)
 config := cache.GetConfig()
 config.GetCode() // "default"
 config.GetLimit() // 1000
@@ -38,7 +38,7 @@ config.GetLimit() // 100
 Use the `Get()` method to retrieve a single value from the local cache:
 
 ```go{2}
-cache := engine.LocalCache(beeorm.DefaultPoolCode)
+cache := engine.LocalCache(orm.DefaultPoolCode)
 value, found := cache.Get(orm, "test-key")
 if found {
     fmt.Printf("Found: %v\n", value)
@@ -52,7 +52,7 @@ if found {
 Use the `Set()` method to store a single value in the local cache:
 
 ```go{2,4}
-cache := engine.LocalCache(beeorm.DefaultPoolCode)
+cache := engine.LocalCache(orm.DefaultPoolCode)
 cache.Set(orm, "test-key", "my value")
 cache = engine.LocalCache("test")
 cache.Set(orm, "another-key", &SomeStruct{Field: "hello"})

@@ -3,7 +3,7 @@
 In some cases, you may need a mechanism to control access to a shared resource from multiple services. While it is easy to limit access to a resource within a single Go application using [sync.Mutex](https://tour.golang.org/concurrency/9), doing so across multiple instances of an application can be more challenging. BeeORM's `Locker` feature can help you create a shared, distributed lock to solve this problem. Behind the scenes, Locker uses Redis, so as long as all your application instances have access to the same Redis instance, you can use Locker to implement a distributed lock:
 
 ```go{
-locker := engine.Redis(beeorm.DefaultPoolCode).GetLocker()
+locker := engine.Redis(orm.DefaultPoolCode).GetLocker()
 
 func testLock(name string) {
     fmt.Printf("GETTING LOCK %s\n", name)
@@ -39,7 +39,7 @@ In the example above, we request a lock with the name `lock-name` that will expi
 Here is an example that demonstrates how to instruct the locker to wait up to 5 seconds for the lock to become available:
 
 ```go
-locker := engine.Redis(beeorm.DefaultPoolCode).GetLocker()
+locker := engine.Redis(orm.DefaultPoolCode).GetLocker()
 
 func testLock(name string) {
     fmt.Printf("GETTING LOCK %s\n", name)
@@ -67,7 +67,7 @@ RELEASING LOCK B
 You can also check when an obtained lock will expire and extend it if needed:
 
 ```go
-locker := engine.Redis(beeorm.DefaultPoolCode).GetLocker()
+locker := engine.Redis(orm.DefaultPoolCode).GetLocker()
 lock, obtained := locker.Obtain(orm, "test", time.Second * 5, 0)
 if obtained {
     defer lock.Release(orm)

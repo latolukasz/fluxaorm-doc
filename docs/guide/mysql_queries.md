@@ -3,8 +3,8 @@
 In this section, you will learn how to run SQL queries in MySQL. First, we need to configure the MySQL data pools and engine. In our example, we will create two pools - one with the name `default` and another with the name `users`:
 
 ```go
-registry := beeorm.NewRegistry()
-registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", beeorm.DefaultPoolCode, nil)
+registry := orm.NewRegistry()
+registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
 registry.RegisterMySQL("user:password@tcp(localhost:3306)/users", "users", nil)
 engine, err := registry.Validate()
 if err != nil {
@@ -18,7 +18,7 @@ orm := engine.NewORM(context.Background())
 Now we are ready to get the MySQL data pool that will be used to execute all queries. This pool also provides a few useful methods:
 
 ```go
-db := engine.DB(beeorm.DefaultPoolCode) // or c.Engine().DB(beeorm.DefaultPoolCode)
+db := engine.DB(orm.DefaultPoolCode) // or c.Engine().DB(orm.DefaultPoolCode)
 config := db.GetConfig()
 config.GetCode() // "default"
 config.GetDatabaseName() // "default_db"
@@ -31,7 +31,7 @@ confit.GetOptions() // MySQL options, MaxOpenConnections, DefaultEncoding....
 To run queries that modify data in MySQL, use the `Exec()` method:
 
 ```go{2,6,10,15}
-db := engine.DB(beeorm.DefaultPoolCode)
+db := engine.DB(orm.DefaultPoolCode)
 result := db.Exec(orm, "INSERT INTO `Cities`(`Name`, `CountryID`) VALUES(?, ?)", "Berlin", 12)
 result.LastInsertId() // 1
 result.RowsAffected() // 1
@@ -55,8 +55,8 @@ result.RowsAffected() // 0
 To run a query that returns only one row, use the `QueryRow()` method:
 
 ```go{5}
-db := engine.DB(beeorm.DefaultPoolCode)
-where := beeorm.NewWhere("SELECT ID, Name FROM Cities WHERE ID = ?", 12)
+db := engine.DB(orm.DefaultPoolCode)
+where := orm.NewWhere("SELECT ID, Name FROM Cities WHERE ID = ?", 12)
 var id uint64
 var name string
 found := db.QueryRow(orm, where, &id, &name)
@@ -67,7 +67,7 @@ found := db.QueryRow(orm, where, &id, &name)
 To run a query that returns multiple rows, use the `Query()` method:
 
 ```go{4}
-db := engine.DB(beeorm.DefaultPoolCode)
+db := engine.DB(orm.DefaultPoolCode)
 var id uint64
 var name string
 results, close := db.Query(orm, "SELECT ID, Name FROM Cities WHERE ID > ? LIMIT 100", 20)
@@ -87,7 +87,7 @@ Remember to include a `defer close()` after every `db.Query()` call. Failing to 
 Working with transactions is straightforward:
 
 ```go
-db := engine.DB(beeorm.DefaultPoolCode)
+db := engine.DB(orm.DefaultPoolCode)
 
 func() {
     tx := db.Begin(orm) 
@@ -106,7 +106,7 @@ Always put `defer Rollback()` after `Begin()`.
 Using MySQL prepared statements  with BeeORM is straightforward:
 
 ```go
-db := engine.DB(beeorm.DefaultPoolCode)
+db := engine.DB(orm.DefaultPoolCode)
 preparedStatement, close := db.Prepare(orm, "INSERT INTO `UserEntity(`Name`, `Age`)` VALUES(?,?)")
 defer close()
 res := preparedStatement.Exec("Tom", 12)
@@ -116,7 +116,7 @@ res.LastInsertId() // 2
 ```
 
 ```go
-db := engine.DB(beeorm.DefaultPoolCode)
+db := engine.DB(orm.DefaultPoolCode)
 preparedStatement, close := db.Prepare(orm, "SELECT `ID`, `Name` FROM `UserEntity WHERE `ID` = ?")
 defer close()
 id := 0
@@ -126,7 +126,7 @@ preparedStatement.QueryRow([]interface{}{2}, &id, &name)
 ```
 
 ```go
-db := engine.DB(beeorm.DefaultPoolCode)
+db := engine.DB(orm.DefaultPoolCode)
 preparedStatement, close := db.Prepare(orm, "SELECT `ID`, `Name` FROM `UserEntity WHERE `ID` > ?")
 defer close()
 id := 0

@@ -1,25 +1,25 @@
 # ORM
 
-In this section, we will explore the fundamental element of BeeORM: the `beeorm.ORM` object, and discover how to create and effectively employ it.
+In this section, we will explore the fundamental element of BeeORM: the `orm.ORM` object, and discover how to create and effectively employ it.
 
 In the previous chapter, you gained insight into creating the `Engine` object, an essential component for accessing data pools and managing registered entities. 
-The `beeorm.ORM` plays a pivotal role in all BeeORM methods, typically serving as the initial argument, facilitating data retrieval and modification in your databases, which forms the cornerstone of every ORM's functionality.
+The `orm.ORM` plays a pivotal role in all BeeORM methods, typically serving as the initial argument, facilitating data retrieval and modification in your databases, which forms the cornerstone of every ORM's functionality.
 
 ## Creating the ORM
 
-To instantiate a `beeorm.ORM` object, you should invoke the `NewORM()` method on a `beeorm.Engine` object. 
-Here's a comprehensive example illustrating how to create a `beeorm.ORM`:
+To instantiate a `orm.ORM` object, you should invoke the `NewORM()` method on a `orm.Engine` object. 
+Here's a comprehensive example illustrating how to create a `orm.ORM`:
 
 ```go{15}
 package main
 
 import (
 	"context"
-    "github.com/latolukasz/beeorm/v3"
+    "github.com/latolukasz/orm"
 )
 
 func main() {
-    registry := beeorm.NewRegistry()
+    registry := orm.NewRegistry()
     // ... register data pools and entities
     engine, err := registry.Validate()
     if err != nil {
@@ -58,7 +58,7 @@ The length of the white bar is correlated with the query time. If a query takes 
 
 ## ORM Meta Data
 
-You can use `beeorm.ORM` to store extra parameters using `SetMetadata` and `GetMetaData` methods:
+You can use `orm.ORM` to store extra parameters using `SetMetadata` and `GetMetaData` methods:
 
 ```go
 orm.SetMetaData("source": "cron_A")
@@ -67,7 +67,7 @@ orm.GetMetaData() // {"source": "cron_A"}
 
 ## ORM clone
 
-You can generate as many `beeorm.ORM` instances in your code as needed. 
+You can generate as many `orm.ORM` instances in your code as needed. 
 Nevertheless, if you wish to share context settings like metadata or debug mode across multiple contexts, you should configure them for each created `Context`, 
 as demonstrated in the example below:
 
@@ -81,7 +81,7 @@ orm2.SetMetaData(orm.GetMetaData())
 orm2.EnableQueryDebug()
 ```
 
-To address this issue, the `beeorm.ORM` provides a specialized method called `Clone()`, which generates a new instance of the `ORM` containing a copy of the metadata and inherits the metadata and debug mode is the same as in cloned Context:
+To address this issue, the `orm.ORM` provides a specialized method called `Clone()`, which generates a new instance of the `ORM` containing a copy of the metadata and inherits the metadata and debug mode is the same as in cloned Context:
 
 ```go{5}
 orm := engine.NewORM(context.Background())

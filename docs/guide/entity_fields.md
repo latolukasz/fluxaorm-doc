@@ -179,7 +179,7 @@ For a more detailed understanding, please refer to the example below:
 ```go
 package main
 
-import "github.com/latolukasz/beeorm/v3"
+import "github.com/latolukasz/orm"
 
 type Color string
 
@@ -224,7 +224,7 @@ type CategoryEntity struct {
 type ProductEntity struct {
     ID       uint64
     Name     string  `orm:"required"`
-    Category beeorm.Reference[CategoryEntity] `orm:"required"`
+    Category orm.Reference[CategoryEntity] `orm:"required"`
 }
 ```
 
@@ -295,7 +295,7 @@ type TestEntity struct {
     ID              uint64
     Alias           [5]string
     Codes           [3]uint32
-    Top10Categories [10]beeorm.Reference[CategoryEntity] `orm:"required"`
+    Top10Categories [10]orm.Reference[CategoryEntity] `orm:"required"`
     Addresses       [3]Address
 }
 ```

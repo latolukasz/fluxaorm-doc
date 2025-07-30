@@ -17,8 +17,8 @@ The entity field type must be either `time.Time` or `*time.Time`. Additionally, 
 package main
 
 import (
-    "github.com/latolukasz/beeorm/v3"
-    "github.com/latolukasz/beeorm/v3/plugin/modified"
+    "github.com/latolukasz/orm"
+    "github.com/latolukasz/orm/plugin/modified"
 )
 
 type MyEntity struct {
@@ -29,7 +29,7 @@ type MyEntity struct {
 }
 
 func main() {
-    registry := beeorm.NewRegistry()
+    registry := orm.NewRegistry()
     registry.RegisterPlugin(modified.New("CreatedAt", "ModifiedAt")) 
 }
 ```

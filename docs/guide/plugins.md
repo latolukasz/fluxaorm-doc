@@ -10,12 +10,12 @@ Activating plugins in BeeORM is a simple process. To get started, register the d
 package main
 
 import (
-    "github.com/latolukasz/beeorm/v3"
-    "github.com/latolukasz/beeorm/v3/plugins/modified"
+    "github.com/latolukasz/orm"
+    "github.com/latolukasz/orm/plugins/modified"
 )
 
 func main() {
-  registry := beeorm.NewRegistry()
+  registry := orm.NewRegistry()
   registry.RegisterPlugin(modified.New("Added", "Updated"))
 }
 ```
@@ -30,7 +30,7 @@ To tailor BeeORM to your specific needs, you have the flexibility to craft your 
 
 ```go
 type PluginInterfaceValidateRegistry interface {
-	ValidateRegistry(engine beeorm.EngineSetter, registry beeorm.Registry) error
+	ValidateRegistry(engine orm.EngineSetter, registry orm.Registry) error
 }
 ```
 
@@ -40,14 +40,14 @@ The first argument, `EngineSetter`, empowers you to define additional parameters
 ```go
 type MyPlugin struct {}
 
-func (p *MyPlugin) ValidateRegistry(engine beeorm.EngineSetter, registry beeorm.Registry) error {
+func (p *MyPlugin) ValidateRegistry(engine orm.EngineSetter, registry orm.Registry) error {
     // perform custom actions
     engine.SetOptions("orm-started", time.Now())
     return nil
 }
 ```
 
-Subsequently, in your code, you can retrieve this option from `beeorm.Engine()`:
+Subsequently, in your code, you can retrieve this option from `orm.Engine()`:
 
 ```go
 ormStarted := engine.Option("orm-started") // returns nil if not defined
@@ -59,18 +59,18 @@ This mechanism allows you to enrich the behavior of the `Engine` during initiali
 
 ```go
 type PluginInterfaceInitRegistryFromYaml interface {
-	InitRegistryFromYaml(registry beeorm.Registry, yaml map[string]interface{}) error
+	InitRegistryFromYaml(registry orm.Registry, yaml map[string]interface{}) error
 }
 ```
 
-The `PluginInterfaceInitRegistryFromYaml` interface is invoked for each Entity when the `registry.InitByYaml()` method is called. This interface provides access to both the `beeorm.Registry` and the data loaded from a YAML file.
+The `PluginInterfaceInitRegistryFromYaml` interface is invoked for each Entity when the `registry.InitByYaml()` method is called. This interface provides access to both the `orm.Registry` and the data loaded from a YAML file.
 
 For instance:
 
 ```go
 type MyPlugin struct {}
 
-func (p *MyPlugin) InitRegistryFromYaml(registry beeorm.Registry, yaml map[string]interface{}) error {
+func (p *MyPlugin) InitRegistryFromYaml(registry orm.Registry, yaml map[string]interface{}) error {
     if yaml["MyPluginEnabled"] == true {
         registry.SetOption("IsMyPluginEnabled", true)
     }
@@ -90,7 +90,7 @@ This functionality allows you to customize the initialization process based on d
 
 ```go
 type PluginInterfaceValidateEntitySchema interface {
-	ValidateEntitySchema(schema beeorm.EntitySchemaSetter) error
+	ValidateEntitySchema(schema orm.EntitySchemaSetter) error
 }
 ```
 
@@ -99,7 +99,7 @@ The `PluginInterfaceValidateEntitySchema` interface is executed for each entity 
 ```go
 type MyPlugin struct {}
 
-func (p *MyPlugin) ValidateEntitySchema(schema beeorm.EntitySchemaSetter) error {
+func (p *MyPlugin) ValidateEntitySchema(schema orm.EntitySchemaSetter) error {
     schema.SetOption("my-plugin-schema-option", "Some value")
     return nil
 }
@@ -108,7 +108,7 @@ func (p *MyPlugin) ValidateEntitySchema(schema beeorm.EntitySchemaSetter) error 
 Subsequently, in your code, you can access entity schema options:
 
 ```go
-schema := beeorm.GetEntitySchema[MyEntity](orm)
+schema := orm.GetEntitySchema[MyEntity](orm)
 value := schema.Option("my-plugin-schema-option")
 ```
 
@@ -118,7 +118,7 @@ This interface empowers you to enhance the behavior of individual entity schemas
 
 ```go
 type PluginInterfaceEntityFlush interface {
-	EntityFlush(schema beeorm.EntitySchema, entity reflect.Value, before, after beeorm.Bind, engine beeorm.Engine) (beeorm.PostFlushAction, error)
+	EntityFlush(schema orm.EntitySchema, entity reflect.Value, before, after orm.Bind, engine orm.Engine) (orm.PostFlushAction, error)
 }
 ```
 
@@ -133,12 +133,12 @@ Here's an illustrative example:
 ```go
 type MyPlugin struct {}
 
-func (p *MyPlugin) EntityFlush(schema beeorm.EntitySchema, entity reflect.Value, before, after beeorm.Bind, engine beeorm.Engine) (beeorm.PostFlushAction, error) {
+func (p *MyPlugin) EntityFlush(schema orm.EntitySchema, entity reflect.Value, before, after orm.Bind, engine orm.Engine) (orm.PostFlushAction, error) {
     now := time.Now().UTC()
     if before == nil && after != nil { // INSERT
         after["CreatedAt"] = now.Format(time.RFC3339)
     }
-    return func(_ beeorm.ORM) {
+    return func(_ orm.ORM) {
         entity.FieldByName("CreatedAt").Set(reflect.ValueOf(now))
     }, nil
 }

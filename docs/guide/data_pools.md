@@ -11,13 +11,13 @@ To connect to a MySQL database, you can use the `RegisterMySQL` method, which ta
 The method is defined as follows:
 
 ```go
-registry := beeorm.NewRegistry()
+registry := orm.NewRegistry()
 
 //MySQL pool with name "default" with default options:
-registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", beeorm.DefaultPoolCode, nil)
+registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
 
 //pool with name "logs" and custom options:
-registry.RegisterMySQL("user:password@tcp(localhost:3306)/logs", "logs", *beeorm.MySQLOptions{MaxOpenConnections: 100})
+registry.RegisterMySQL("user:password@tcp(localhost:3306)/logs", "logs", *orm.MySQLOptions{MaxOpenConnections: 100})
 ```
 
 ```yml
@@ -35,7 +35,7 @@ logs:
 With `MySQLOptions` argument yon can configure very important [MySQL golang driver important setting](https://github.com/go-sql-driver/mysql#important-settings):
 
 ```go
-options := beeorm.MySQLPoolOptions{
+options := orm.MySQLPoolOptions{
     MaxOpenConnections: 30, 
     MaxIdleConnections: 20, 
     ConnMaxLifetime: 3 * time.Minute,
@@ -80,7 +80,7 @@ To use the cache, you simply need to specify the pool name and the maximum numbe
 
 ```go
 // default pool with max 100 000 values
-registry.RegisterLocalCache(beeorm.DefaultPoolCode, 100000)
+registry.RegisterLocalCache(orm.DefaultPoolCode, 100000)
 // pool "last_searches" with no limits
 registry.RegisterLocalCache("last_searches", 0)
 ```
@@ -106,13 +106,13 @@ Here are some examples of how to use the RegisterRedis method:
 
 ```go
 // pool with name "default", default options, pointing to Redis database #0:
-registry.RegisterRedis("localhost:6379", 0, beeorm.DefaultPoolCode, nil)
+registry.RegisterRedis("localhost:6379", 0, orm.DefaultPoolCode, nil)
 
 // pool with name "users", pointing to Redis database #1 with connection credentials:
-registry.RegisterRedis("/var/redis.sock", 1, "users", &beeorm.RedisOptions{User: "user", Password: "password"})
+registry.RegisterRedis("/var/redis.sock", 1, "users", &orm.RedisOptions{User: "user", Password: "password"})
 
 // pool with name "cluster", pointing to Redis database #3 connected to Redis sentinel:
-options := &beeorm.RedisOptions{Master: "master_name", Sentinels: []string{":26379", "192.156.23.11:26379", "192.156.23.12:26379"}}
+options := &orm.RedisOptions{Master: "master_name", Sentinels: []string{":26379", "192.156.23.11:26379", "192.156.23.12:26379"}}
 registry.RegisterRedis("", 3, "cluster", options)
 
 ```

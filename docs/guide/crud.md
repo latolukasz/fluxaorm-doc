@@ -7,7 +7,7 @@ The following examples build upon the following code base:
 ```go
 package main
 
-import "github.com/latolukasz/beeorm/v3"
+import "github.com/latolukasz/orm"
 
 type CategoryEntity struct {
 	ID          uint64      `orm:"localCahe;redisCache"`
@@ -23,20 +23,20 @@ type ImageEntity struct {
 type BrandEntity struct {
 	ID   uint64 `orm:"redisCache"`
 	Name string `orm:"required;length=100"`
-	Logo beeorm.Reference[ImageEntity]
+	Logo orm.Reference[ImageEntity]
 }
 
 type ProductEntity struct {
 	ID       uint64 `orm:"redisCache"`
 	Name     string `orm:"required;length=100"`
-	Category beeorm.Reference[CategoryEntity] `orm:"required"`
-	Brand    beeorm.Reference[BrandEntity] 
+	Category orm.Reference[CategoryEntity] `orm:"required"`
+	Brand    orm.Reference[BrandEntity] 
 }
 
 func main() {
-    registry := beeorm.NewRegistry()
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", beeorm.DefaultPoolCode, nil) 
-    registry.RegisterRedis("localhost:6379", 0, beeorm.DefaultPoolCode, nil)
+    registry := orm.NewRegistry()
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil) 
+    registry.RegisterRedis("localhost:6379", 0, orm.DefaultPoolCode, nil)
     registry.RegisterEntity(CategoryEntity{}, BrandEntity{}, ImageEntity{}, ProductEntity{}) 
     engine, err := registry.Validate()
     if err != nil {
@@ -48,23 +48,23 @@ func main() {
 
 ## Saving New Entities
 
-To insert a new entity into database you need to create new instance with `NewEntity()` function and run `beeorm.ORM` method
+To insert a new entity into database you need to create new instance with `NewEntity()` function and run `orm.ORM` method
 `Flush()`. See below example:
 
 ```go
-categoryCars := beeorm.NewEntity[CategoryEntity](orm)
+categoryCars := orm.NewEntity[CategoryEntity](orm)
 categoryCars.Code = "cars"
 categoryCars.Name = "Cars"
 err := c.Flush()
 ```
 
-When method `Flush()` of `beeorm.ORM` is executed all entities created with `NewEntity()` with this `beeorm.Context` function are
+When method `Flush()` of `orm.ORM` is executed all entities created with `NewEntity()` with this `orm.Context` function are
 inserted into MySQL and cache is updated. Below example demonstrates how to insert into MySQL multiple entities at once:
 
 ```go
-image1 := beeorm.NewEntity[ImageEntity](orm)
+image1 := orm.NewEntity[ImageEntity](orm)
 image1.Url = "image1.png"
-image2 := beeorm.NewEntity[ImageEntity](orm)
+image2 := orm.NewEntity[ImageEntity](orm)
 image2.Url = "image2.png"
 err := c.Flush() // two rows are inserted into MySQL table
 ```
@@ -81,11 +81,11 @@ newUser := entitySchema.NewEntity(orm)
 Here's an example of how to set up a one-to-one reference
 
 ```go{5}
-image := beeorm.NewEntity[ImageEntity](orm)
+image := orm.NewEntity[ImageEntity](orm)
 image.Url = "image1.png"
-brandVolvo := beeorm.NewEntity[BrandEntity](orm)
+brandVolvo := orm.NewEntity[BrandEntity](orm)
 brandVolvo.Name = "Volvo"
-brandVolvo.Logo = beeorm.Reference[ImageEntity](image.ID)
+brandVolvo.Logo = orm.Reference[ImageEntity](image.ID)
 err := c.Flush()
 ```
 
@@ -97,23 +97,23 @@ BeeORM leverages [Redis sets](https://redis.io/docs/data-types/sets/) to store i
 as demonstrated in the following example:
 
 ```go
-categoryCars := beeorm.NewEntity[CategoryEntity](orm)
+categoryCars := orm.NewEntity[CategoryEntity](orm)
 categoryCars.Code = "cars"
 err := c.Flush() // nil, row is inserted to MySQL table
 
-anotherCategory:= beeorm.NewEntity[CategoryEntity](orm)
+anotherCategory:= orm.NewEntity[CategoryEntity](orm)
 categoryCars.Code = "cars"
-// returns beeorm.DuplicatedKeyBindError{Index: "code", ID: 84984747727443, Columns: ["Code"]}
+// returns orm.DuplicatedKeyBindError{Index: "code", ID: 84984747727443, Columns: ["Code"]}
 err = c.Flush() 
 ```
 
 Every time an entity is added, updated, or deleted, the values in the Redis set that stores information about the unique key are updated. 
 However, there is one issue with this approach - in certain cases, you may need to clear the Redis data. In such cases, BeeORM is unable to validate unique values when `Flush()` is executed. 
-Instead of receiving a `beeorm.DuplicatedKeyBindError`, the `Flush()` function returns a `mysql.MySQLError` error with code 1062. This indicates that you need to refill the Redis set with the correct data. 
+Instead of receiving a `orm.DuplicatedKeyBindError`, the `Flush()` function returns a `mysql.MySQLError` error with code 1062. This indicates that you need to refill the Redis set with the correct data. 
 BeeORM provides a special function for this purpose:
 
 ```go
-beeorm.LoadUniqueKeys(orm, false)
+orm.LoadUniqueKeys(orm, false)
 ```
 It is considered a good practice to run the above function every time your application starts. 
 When Redis is not flushed, this function executes in a matter of milliseconds. However, if Redis data has been flushed, 
@@ -128,8 +128,8 @@ You can also provide optional arguments to force unique index cache recalculatio
 It's very useful when you manually run SQL queries in MySQL. Then you can run:
 
 ```go
-schema := beeorm.GetEntitySchema[UserEntity](orm)
-beeorm.LoadUniqueKeys(orm, true, schema)
+schema := orm.GetEntitySchema[UserEntity](orm)
+orm.LoadUniqueKeys(orm, true, schema)
 ```
 
 ## Getting Entity by ID
@@ -139,13 +139,13 @@ There are several ways to get entities from the database when you know the prima
 You can use the `GetByID()` method:
 
 ```go
-product, found := beeorm.GetByID[ProductEntity](orm, 27749843747733)
+product, found := orm.GetByID[ProductEntity](orm, 27749843747733)
 ```
 
 In case you are sure entity with provided ID exists in database you can use `MustByID()`:
 
 ```go
-product := beeorm.MustByID[ProductEntity](orm, 27749843747733) // panics if not found
+product := orm.MustByID[ProductEntity](orm, 27749843747733) // panics if not found
 ```
 
 Furthermore, if you find yourself in a scenario where the entity type is unknown, you can still retrieve the entity by utilizing the `GetByID()` method within the [entity schema](/guide/entity_schema.html):
@@ -160,7 +160,7 @@ user, found := entitySchema.GetByID(orm, 12)
 If you need to get more than one entity, you can use `GetByIDs()`:
 
 ```go
-iterator := beeorm.GetByIDs[ProductEntity](orm, 324343544424, 34545654434, 7434354434)
+iterator := orm.GetByIDs[ProductEntity](orm, 324343544424, 34545654434, 7434354434)
 iterator.Len() == 3 // true
 for iterator.Next() {
     product := iterator.Entity()
@@ -172,7 +172,7 @@ for iterator.Next() {
 If entity holds unique index you can get entity by index name:
 
 ```go
-category, found := beeorm.GetByUniqueIndex[CategoryEntity](orm, "code", "cars")
+category, found := orm.GetByUniqueIndex[CategoryEntity](orm, "code", "cars")
 ```
 
 ## Getting Entities by Reference
@@ -180,7 +180,7 @@ category, found := beeorm.GetByUniqueIndex[CategoryEntity](orm, "code", "cars")
 You can easily get entities by one-one reference name:
 
 ```go
-iterator := beeorm.GetByReference[ProductEntity](orm, "Category", 9934828848843)
+iterator := orm.GetByReference[ProductEntity](orm, "Category", 9934828848843)
 for iterator.Next() {
     product := iterator.Entity()
 }
@@ -195,12 +195,12 @@ All you need to do is add the `cached` tag as follows:
 ```go{3}
 type ProductEntity struct {
 	ID       uint64 `orm:"localCache"`
-	Category beeorm.Reference[CategoryEntity] `orm:"required;cached"`
+	Category orm.Reference[CategoryEntity] `orm:"required;cached"`
 	...
 }
 
 // data is loaded from local cache only without any MySQL query to DB
-iterator := beeorm.GetByReference[ProductEntity](orm, "Category", 9934828848843)
+iterator := orm.GetByReference[ProductEntity](orm, "Category", 9934828848843)
 ```
 
 ## Getting Entities by Index
@@ -210,12 +210,12 @@ You can easily get entities by index name:
 ```go
 type ProductEntity struct {
 	ID       uint64 `orm:"localCache"`
-	Category beeorm.Reference[CategoryEntity] `orm:"index=ActiveInCategory;required"`
+	Category orm.Reference[CategoryEntity] `orm:"index=ActiveInCategory;required"`
 	Active   bool `orm:"required"`            `orm:"index=ActiveInCategory:1"`
 	...
 }
 
-iterator := beeorm.GetByIndex[ProductEntity](orm, "ActiveInCategory", 9934828848843, true)
+iterator := orm.GetByIndex[ProductEntity](orm, "ActiveInCategory", 9934828848843, true)
 ```
 
 You can also add `cached` tag to keep rows in cache:
@@ -223,7 +223,7 @@ You can also add `cached` tag to keep rows in cache:
 ```go{3,4}
 type ProductEntity struct {
 	ID       uint64 `orm:"localCache"`
-	Category beeorm.Reference[CategoryEntity] `orm:"index=ActiveInCategory;required;cached"`
+	Category orm.Reference[CategoryEntity] `orm:"index=ActiveInCategory;required;cached"`
 	Active   bool `orm:"required"`            `orm:"index=ActiveInCategory:1;cached"`
 	...
 }
@@ -235,7 +235,7 @@ type ProductEntity struct {
 You can get all entities from a table also:
 
 ```go
-iterator := beeorm.GetAll[ProductEntity](orm)
+iterator := orm.GetAll[ProductEntity](orm)
 for iterator.Next() {
     product := iterator.Entity()
 }
@@ -261,8 +261,8 @@ When updating an entity, the process involves retrieving it from the database an
 In this approach, you begin by obtaining the entity from the database and then create a modified copy using the `EditEntity()` function. Subsequently, you adjust the fields of the copy before applying the changes with the `Flush()` method. The following example illustrates the process:
 
 ```go{2}
-product, found := beeorm.GetByID[ProductEntity](orm, 27749843747733)
-newVersionOfProduct := beeorm.EditEntity(orm, product)
+product, found := orm.GetByID[ProductEntity](orm, 27749843747733)
+newVersionOfProduct := orm.EditEntity(orm, product)
 newVersionOfProduct.Name = "New name"
 c.Flush()
 ```
@@ -270,12 +270,12 @@ c.Flush()
 It is essential to note that after executing `Flush()`, if you intend to edit the same entity again, you must rerun the `EditEntity()` function, as demonstrated in the corrected approach below:
 
 ```go
-product, found := beeorm.GetByID[ProductEntity](orm, 27749843747733)
-newVersionOfProduct := beeorm.EditEntity(orm, product)
+product, found := orm.GetByID[ProductEntity](orm, 27749843747733)
+newVersionOfProduct := orm.EditEntity(orm, product)
 newVersionOfProduct.Name = "New name"
 c.Flush() // Executes UPDATE ProductEntity SET Name = "New name"
 
-newVersionOfProduct = beeorm.EditEntity(orm, newVersionOfProduct)
+newVersionOfProduct = orm.EditEntity(orm, newVersionOfProduct)
 newVersionOfProduct.Name = "Another name"
 c.Flush() // Executes UPDATE ProductEntity SET Name = "Another name"
 ```
@@ -287,12 +287,12 @@ This ensures the proper handling of entity updates. However, it's worth noting t
 An alternative method involves using the `EditEntityField()` function to define new values for specific entity fields. Afterward, the `Flush()` method is employed to execute all changes and apply the new values to the entity and its cache. The example below illustrates this approach:
 
 ```go
-product, found := beeorm.GetByID[ProductEntity](orm, 27749843747733)
-err := beeorm.EditEntityField(orm, product, "Name",  "New name")
+product, found := orm.GetByID[ProductEntity](orm, 27749843747733)
+err := orm.EditEntityField(orm, product, "Name",  "New name")
 if err != nil {
     return err
 }
-err := beeorm.EditEntityField(orm, product, "Price",  123.12)
+err := orm.EditEntityField(orm, product, "Price",  123.12)
 if err != nil {
     return err
 }
@@ -304,7 +304,7 @@ It's important to remember that until the `Flush()` method is executed, the enti
 
 ```go
 fmt.Println(product.Name) // "Old value"
-beeorm.EditEntityField(orm, product, "Name",  "New value")
+orm.EditEntityField(orm, product, "Name",  "New value")
 product.Name // "Old value"
 c.Flush()
 product.Name // "New value"
@@ -318,8 +318,8 @@ You can use `IsDirty()` function to get list of changed entity fields:
 
 ```go
 fmt.Println(product.Name) // "Old value"
-beeorm.EditEntityField(orm, product, "Name",  "New value")
-oldValues, newValues, hasChanges := beeorm.IsDirty[ProductEntity](orm, 232)
+orm.EditEntityField(orm, product, "Name",  "New value")
+oldValues, newValues, hasChanges := orm.IsDirty[ProductEntity](orm, 232)
 if hasChanges {
     fmt.Printf("%v\n", oldValues) // ["Name": "Old value"]
     fmt.Printf("%v\n", newValues)  // ["Name": "New value"]
@@ -331,8 +331,8 @@ if hasChanges {
 Deleting entity is very simple. See below example:
 
 ```go
-product, found := beeorm.GetByID[ProductEntity](orm, 27749843747733)
-beeorm.DeleteEntity(orm, entity)
+product, found := orm.GetByID[ProductEntity](orm, 27749843747733)
+orm.DeleteEntity(orm, entity)
 c.Flush()
 ```
 ## Multiple CRUD operations
@@ -345,34 +345,34 @@ This approach ensures that the execution of all database operations is both rapi
 Let's illustrate this with an example:
 
 ```go
-categoryCars := beeorm.NewEntity[CategoryEntity](orm)
+categoryCars := orm.NewEntity[CategoryEntity](orm)
 categoryCars.Code = "cars"
 categoryCars.Name = "Cars"
 
-image := beeorm.NewEntity[ImageEntity](orm)
+image := orm.NewEntity[ImageEntity](orm)
 image.Url = "image1.png"
 
-brandBMW := beeorm.NewEntity[BrandEntity](orm)
+brandBMW := orm.NewEntity[BrandEntity](orm)
 brandBMW.Name = "BMW"
-brandBMW.Logo = beeorm.Reference[ImageEntity](image.ID)
+brandBMW.Logo = orm.Reference[ImageEntity](image.ID)
 
-oldProduct, found := beeorm.GetByID[ProductEntity](orm, 27749843747733)
-newProduct := beeorm.EditEntity(orm, oldProduct)
-newProduct.Category = beeorm.Reference[CategoryEntity](categoryCars.ID)
+oldProduct, found := orm.GetByID[ProductEntity](orm, 27749843747733)
+newProduct := orm.EditEntity(orm, oldProduct)
+newProduct.Category = orm.Reference[CategoryEntity](categoryCars.ID)
 
-oldImage, found := beeorm.GetByID[ImageEntity](orm, 277498837423)
-beeorm.DelteEntity(orm, oldImage)
+oldImage, found := orm.GetByID[ImageEntity](orm, 277498837423)
+orm.DelteEntity(orm, oldImage)
 
 err := c.Flush()
 ```
 
 ## Cloning entities
 
-Sometimes you may need to create a copy of an entity, make some changes to it, and save it as a new row in the database. You can easily do this using the `beeorm.Copy()` function:
+Sometimes you may need to create a copy of an entity, make some changes to it, and save it as a new row in the database. You can easily do this using the `orm.Copy()` function:
 
 ```go{2}
-product, found := beeorm.GetByID[ProductEntity](orm, 27749843747733)
-newProduct := beeorm.Copy(orm, product)
+product, found := orm.GetByID[ProductEntity](orm, 27749843747733)
+newProduct := orm.Copy(orm, product)
 Name.Name = "New name"
 engine.Flush()
 ```

@@ -1,29 +1,29 @@
 # Registry
 
-The `beeorm.Registry` object is the starting point for using BeeORM. It allows you to configure your database connections and register structs that represent your data. You can initialize a 
-beeorm.Registry object using the `beeorm.NewRegistry()` function, as shown in the following example:
+The `orm.Registry` object is the starting point for using BeeORM. It allows you to configure your database connections and register structs that represent your data. You can initialize a 
+orm.Registry object using the `orm.NewRegistry()` function, as shown in the following example:
 
 ```go
 package main
 
-import "github.com/latolukasz/beeorm/v3"
+import "github.com/latolukasz/orm"
 
 func main() {
     // Initialize a new Registry
-    registry := beeorm.NewRegistry()
+    registry := orm.NewRegistry()
     
     // Register a MySQL connection pool
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", beeorm.DefaultPoolCode, nil) 
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil) 
 } 
 ```
 
-Alternatively, you can configure the `beeorm.Registry` object using data from a YAML file, as shown in the following example:
+Alternatively, you can configure the `orm.Registry` object using data from a YAML file, as shown in the following example:
 
 ```go{20}
 package main
 
 import (
-    "github.com/latolukasz/beeorm/v3"
+    "github.com/latolukasz/orm"
     "io/ioutil"
     "gopkg.in/yaml.v2"
 )
@@ -38,7 +38,7 @@ func main() {
     if err != nil {
         panic(err)
     }
-    registry := beeorm.NewRegistry()
+    registry := orm.NewRegistry()
     err = registry.InitByYaml(parsedYaml)
      if err != nil {
         panic(err)

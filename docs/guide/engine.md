@@ -9,7 +9,7 @@ To create an Engine, you first need to create a `Registry` object and register t
 ```go{16}
 package main
 
-import "github.com/latolukasz/beeorm/v3"
+import "github.com/latolukasz/orm"
 
 type UserEntity struct {
 	ID   uint64
@@ -17,9 +17,9 @@ type UserEntity struct {
 }
 
 func main() {
-    registry := beeorm.NewRegistry()
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", beeorm.DefaultPoolCode, nil)
-    registry.RegisterRedis("localhost:6379", 0, beeorm.DefaultPoolCode, nil)
+    registry := orm.NewRegistry()
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
+    registry.RegisterRedis("localhost:6379", 0, orm.DefaultPoolCode, nil)
     registry.RegisterEntity(UserEntity{}) 
     
     engine, err := registry.Validate()
@@ -43,7 +43,7 @@ The `Engine` object provides method `Registry()` for accessing information about
 ```go{22,27,32,37}
 package main
 
-import "github.com/latolukasz/beeorm/v3"
+import "github.com/latolukasz/orm"
 
 type CarEntity struct {
 	ID    uint64
@@ -51,10 +51,10 @@ type CarEntity struct {
 }
 
 func main() {
-    registry := beeorm.NewRegistry()
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", beeorm.DefaultPoolCode, nil)
-    registry.RegisterRedis("localhost:6379", 0, beeorm.DefaultPoolCode, nil)
-    registry.RegisterLocalCache(beeorm.DefaultPoolCode, 0)
+    registry := orm.NewRegistry()
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
+    registry.RegisterRedis("localhost:6379", 0, orm.DefaultPoolCode, nil)
+    registry.RegisterLocalCache(orm.DefaultPoolCode, 0)
     registry.RegisterEntity(CarEntity{}) 
     engine, err := registry.Validate()
     if err != nil {
@@ -88,7 +88,7 @@ func main() {
 To retrieve a MySQL pool by code, you can use the `DB()` method:
 
 ```go
-db := engine.DB(beeorm.DefaultPoolCode)
+db := engine.DB(orm.DefaultPoolCode)
 ```
 
 ## Getting Redis pool
@@ -96,7 +96,7 @@ db := engine.DB(beeorm.DefaultPoolCode)
 To retrieve a Redis pool by code, you can use the `Redis()` method:
 
 ```go
-redisPool := engine.Redis(beeorm.DefaultPoolCode)
+redisPool := engine.Redis(orm.DefaultPoolCode)
 ```
 
 ## Getting local cache pool
@@ -104,5 +104,5 @@ redisPool := engine.Redis(beeorm.DefaultPoolCode)
 To retrieve a local cache pool by code, you can use the `LocalCache()` method:
 
 ```go
-localCache := engine.LocalCache(beeorm.DefaultPoolCode)
+localCache := engine.LocalCache(orm.DefaultPoolCode)
 ```

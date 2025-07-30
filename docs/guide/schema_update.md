@@ -7,7 +7,7 @@ The recommended approach is to use the `GetAlters()` function. This function com
 ```go{20}
 package main
 
-import "github.com/latolukasz/beeorm/v3"
+import "github.com/latolukasz/orm"
 
 type CategoryEntity struct {
 	ID   uint64 `orm:"mysql=products"`
@@ -15,8 +15,8 @@ type CategoryEntity struct {
 }
 
 func main() {
-    registry := beeorm.NewRegistry()
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", beeorm.DefaultPoolCode, nil)
+    registry := orm.NewRegistry()
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
     registry.RegisterEntity(CategoryEntity{})
     engine, err := registry.Validate()
     if err != nil {
@@ -24,7 +24,7 @@ func main() {
     }
     orm := engine.NewORM(context.Background())
     
-    alters := beeorm.GetAlters(orm)
+    alters := orm.GetAlters(orm)
     for _, alter := range alters {
       alter.SQL // "CREATE TABLE `CategoryEntity` ..."
       alter.Pool // "products"
@@ -33,7 +33,7 @@ func main() {
 }  
 ```
 
-The Safe field of the beeorm.Alter object is false if any of the following conditions are met:
+The Safe field of the orm.Alter object is false if any of the following conditions are met:
 
  * The table needs to be dropped and is not empty.
  * At least one column needs to be removed or changed and the table is not empty.
@@ -59,11 +59,11 @@ See [ignored tables](/guide/data_pools.html#ignored-tables) section how to regis
 
 ## Updating Entity Schema
 
-You can also use the `beeorm.EntitySchema` object of an entity to update its database schema. Here is an example:
+You can also use the `orm.EntitySchema` object of an entity to update its database schema. Here is an example:
 
 ```go{2}
 orm := engine.NewORM(context.Background())
-entitySchema := beeorm.GetEntitySchema[CategoryEntity](orm)
+entitySchema := orm.GetEntitySchema[CategoryEntity](orm)
 alters, has := entitySchema.GetSchemaChanges(orm)
 if has {
     for _, alter := range alters {
@@ -79,16 +79,16 @@ For convenience, you can use the following short versions to execute all the nec
 
 ```go{3-4}
 orm := engine.NewORM(context.Background())
-entitySchema := beeorm.GetEntitySchema[CategoryEntity](orm)
+entitySchema := orm.GetEntitySchema[CategoryEntity](orm)
 entitySchema.UpdateSchema(engine) // executes all alters
 entitySchema.UpdateSchemaAndTruncateTable(engine) // truncates table and executes all alters
 ```
 
-The `beeorm.EntitySchema` object also provides several useful methods for managing the entity table:
+The `orm.EntitySchema` object also provides several useful methods for managing the entity table:
 
 ```go
 orm := engine.NewORM(context.Background())
-entitySchema := beeorm.GetEntitySchema[CategoryEntity](orm)
+entitySchema := orm.GetEntitySchema[CategoryEntity](orm)
 entitySchema.DropTable(orm) // drops the entire table
 entitySchema.TruncateTable(orm) // truncates the table
 ```

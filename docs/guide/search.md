@@ -10,13 +10,13 @@ Here is an example of how to use the Pager object:
 
 ```go
 // load first 100 rows
-pager := beeorm.NewPager(1, 100) // LIMIT 0, 100
+pager := orm.NewPager(1, 100) // LIMIT 0, 100
 pager.GetPageSize() // 100
 pager.GetCurrentPage() // 1
 pager.String() // "LIMIT 0,100"
 
 // load next 100 rows (page nr 2)
-pager = beeorm.NewPager(2, 100) // LIMIT 100, 100
+pager = orm.NewPager(2, 100) // LIMIT 100, 100
 pager.GetPageSize() // 100
 pager.GetCurrentPage() // 2
 pager.String() // "LIMIT 100,100"
@@ -27,42 +27,42 @@ pager.GetCurrentPage() // 3
 
 ## Using the Where Object
 
-Every SQL search query requires specific search conditions to be defined. The `beeorm.Where` object can be used to define these conditions in a convenient and flexible way.
+Every SQL search query requires specific search conditions to be defined. The `orm.Where` object can be used to define these conditions in a convenient and flexible way.
 
 Here is an example of how to use the `Where` object:
 
 ```go
-// WHERE Email = "bee@beeorm.io" AND Age >= 18
-where := beeorm.NewWhere("Email = ? AND Age >= ?", "bee@beeorm.io", 18)
+// WHERE Email = "bee@orm.io" AND Age >= 18
+where := orm.NewWhere("Email = ? AND Age >= ?", "bee@orm.io", 18)
 where.String() // returns: "Email = ? AND Age >= ?"
-where.GetParameters() // returns: []interface{}{"bee@beeorm.io", 18}
+where.GetParameters() // returns: []interface{}{"bee@orm.io", 18}
 
 // update the first parameter
-where.SetParameter(1, "lion@beeorm.io")
-where.GetParameters() // returns: []interface{}{"lion@beeorm.io", 18}
+where.SetParameter(1, "lion@orm.io")
+where.GetParameters() // returns: []interface{}{"lion@orm.io", 18}
 
 // update all parameters
-where.SetParameters("elephant@beeorm.io", 20)
-where.GetParameters() // returns: []interface{}{"elephant@beeorm.io", 20}
+where.SetParameters("elephant@orm.io", 20)
+where.GetParameters() // returns: []interface{}{"elephant@orm.io", 20}
 
 // append additional conditions
 where.Append(" AND Age <= ?", 60)
 where.String() // returns: "Email = ? AND Age >= ? AND Age <= ?"
-where.GetParameters() // returns: []interface{}{"elephant@beeorm.io", 20, 60}
+where.GetParameters() // returns: []interface{}{"elephant@orm.io", 20, 60}
 ```
 
 You can also use the `Where` object to define the `ORDER BY` clause in a query:
 
 ```go
 // WHERE 1 ORDER BY Age
-where := beeorm.NewWhere("1 ORDER BY Age")
+where := orm.NewWhere("1 ORDER BY Age")
 // WHERE Age > 10 ORDER BY Age
-where := beeorm.NewWhere("Age > ? ORDER BY Age", 10)
+where := orm.NewWhere("Age > ? ORDER BY Age", 10)
 ```
-If you pass a slice as an argument to `beeorm.Where`, it will automatically convert it into the `SQL IN (?,?,...)` syntax, which can simplify your code. For example:
+If you pass a slice as an argument to `orm.Where`, it will automatically convert it into the `SQL IN (?,?,...)` syntax, which can simplify your code. For example:
 
 ```go
-where := beeorm.NewWhere("Age IN ?", []int{18, 20, 30})
+where := orm.NewWhere("Age IN ?", []int{18, 20, 30})
 where.String() // WHERE Age IN (?,?,?)
 where.GetParameters() // []interface{}{18, 20, 30}
 ```
@@ -74,7 +74,7 @@ The `Search()` function is used to search for entities using a SQL query conditi
 Here is an example of how to use the `Search()` function:
 
 ```go
-iterator := beeorm.Search[UserEntity](orm, beeorm.NewWhere("Age >= ?", 18), beeorm.NewPager(1, 100))
+iterator := orm.Search[UserEntity](orm, orm.NewWhere("Age >= ?", 18), orm.NewPager(1, 100))
 for iterator.Next() {
     user := iterator.Entity()
 }
@@ -83,21 +83,21 @@ for iterator.Next() {
 The Pager object is optional. If you provide nil, BeeORM will search for all rows.
 
 ```go
-beeorm.Search[UserEntity](orm, beeorm.NewWhere("Age >= ?", 18), nil)
+orm.Search[UserEntity](orm, orm.NewWhere("Age >= ?", 18), nil)
 ```
 
 If you need the total number of found rows, you can use the `SearchWithCount()` function, which works exactly the same as `engine.Search()`, with the only difference being that it returns the total number of found rows as an int.
 
 ```go
-iterator, total := beeorm.SearchWithCount[UserEntity](orm, beeorm.NewWhere("Age >= ?", 18), beeorm.NewPager(1, 100))
+iterator, total := orm.SearchWithCount[UserEntity](orm, orm.NewWhere("Age >= ?", 18), orm.NewPager(1, 100))
 ```
 
 You can efficiently search for entities using the search methods offered by the [entity schema](/guide/entity_schema.html) object.
 
 ```go
 entitySchema := c.Engine().Registry().EntitySchema("mypackage.UserEntity")
-searchCriteria := beeorm.NewWhere("Age >= ?", 18)
-pagination := beeorm.NewPager(1, 100)
+searchCriteria := orm.NewWhere("Age >= ?", 18)
+pagination := orm.NewPager(1, 100)
 iterator, total := entitySchema.SearchWithCount(orm, searchCriteria, pagination)
 ```
 
@@ -107,7 +107,7 @@ If you need to search for a single entity, you can use the `SearchOne()` functio
 
 ```go
 // returns nil if not found
-firstUser, found := beeorm.SearchOne[UserEntity](orm, beeorm.NewWhere("1 ORDER BY `CreatedAt`"))
+firstUser, found := orm.SearchOne[UserEntity](orm, orm.NewWhere("1 ORDER BY `CreatedAt`"))
 ```
 
 ::: tip
@@ -119,10 +119,10 @@ This function always adds `LIMIT 1` to the SQL query, so if your query selects m
 You can use the `SearchIDs()` or `SearchIDsWithCount` functions to search for the primary keys of an entity:
 
 ```go
-ids := beeorm.SearchIDs[UserEntity](orm, beeorm.NewWhere("Age >= ?", 18), beeorm.NewPager(1, 10))
+ids := orm.SearchIDs[UserEntity](orm, orm.NewWhere("Age >= ?", 18), orm.NewPager(1, 10))
 for _, id := range ids {
     fmt.Printf("ID: %d\n", id)
 }
 // if you need total rows
-ids, total := beeorm.SearchIDsWithCount[UserEntity](orm, beeorm.NewWhere("Age >= ?", 18), beeorm.NewPager(1, 10))
+ids, total := orm.SearchIDsWithCount[UserEntity](orm, orm.NewWhere("Age >= ?", 18), orm.NewPager(1, 10))
 ```
