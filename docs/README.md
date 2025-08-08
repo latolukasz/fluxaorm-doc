@@ -2,8 +2,8 @@
 home: true
 heroText:  
 siteTitle:
-heroImage: logo.svg
-heroImageDark: logoDark.svg
+heroImage: logo2.svg
+heroImageDark: logoDark2.svg
 tagline: Golang ORM designed for optimal performance with MySQL, Redis and Redis Query Engine
 actionText: Quick Start →
 actionLink: /guide/
