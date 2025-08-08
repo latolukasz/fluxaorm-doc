@@ -1,8 +1,8 @@
 # Data pools
 
-It's time to learn how to set up connections to your databases in BeeORM.
+It's time to learn how to set up connections to your databases in FluxaORM.
 
-Each connection pool in BeeORM requires a unique name that will be used in your code to identify the source of data. This name will be used later to access the data in your code. 
+Each connection pool in FluxaORM requires a unique name that will be used in your code to identify the source of data. This name will be used later to access the data in your code. 
 Make sure to choose a clear and descriptive name for each connection pool to avoid confusion and make your code easy to read and maintain.
 
 ## MySQL pool
@@ -11,10 +11,10 @@ To connect to a MySQL database, you can use the `RegisterMySQL` method, which ta
 The method is defined as follows:
 
 ```go
-registry := orm.NewRegistry()
+registry := fluxaorm.NewRegistry()
 
 //MySQL pool with name "default" with default options:
-registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
+registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", fluxaorm.DefaultPoolCode, nil)
 
 //pool with name "logs" and custom options:
 registry.RegisterMySQL("user:password@tcp(localhost:3306)/logs", "logs", *orm.MySQLOptions{MaxOpenConnections: 100})
@@ -35,7 +35,7 @@ logs:
 With `MySQLOptions` argument yon can configure very important [MySQL golang driver important setting](https://github.com/go-sql-driver/mysql#important-settings):
 
 ```go
-options := orm.MySQLPoolOptions{
+options := fluxaorm.MySQLPoolOptions{
     MaxOpenConnections: 30, 
     MaxIdleConnections: 20, 
     ConnMaxLifetime: 3 * time.Minute,
@@ -62,19 +62,19 @@ global:
 
 ::: tip
 You can configure MySQL connection settings, including parameters like `maxOpenConnections` and `maxIdleConnections`, 
-but it's advisable to retain the default values (empty). BeeORM can automatically determine and set the optimal settings based on your MySQL database configuration.
+but it's advisable to retain the default values (empty). FluxaORM can automatically determine and set the optimal settings based on your MySQL database configuration.
 :::
 
 ### Ignored tables
 
 
-BeeORM's default behavior is to attempt to [remove all MySQL tables](/guide/schema_update.html#schema-update)  that are not explicitly defined in your application code. 
+FluxaORM's default behavior is to attempt to [remove all MySQL tables](/guide/schema_update.html#schema-update)  that are not explicitly defined in your application code. 
 However, you have the option to retain these tables by specifying their names in the `IgnoredTables` option.
 
 
 ## Local cache pool
 
-BeeORM offers a simple and extremely fast in-memory key-value cache for storing values. The cache uses the least recently used ([LRU](https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU))) algorithm to manage its size and automatically evicts the least frequently used values when it reaches capacity.
+FluxaORM offers a simple and extremely fast in-memory key-value cache for storing values. The cache uses the least recently used ([LRU](https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU))) algorithm to manage its size and automatically evicts the least frequently used values when it reaches capacity.
 
 To use the cache, you simply need to specify the pool name and the maximum number of cached keys:
 
@@ -93,20 +93,20 @@ last_searches:
 ```
 
 ::: tip
-When using BeeORM's in-memory key-value cache, it's important to carefully consider the cache size. If the cache is too small, data will be evicted frequently, resulting in a low hit rate. On the other hand, if the cache is too large, it will use up a lot of memory and may contain data that is no longer needed.
+When using FluxaORM's in-memory key-value cache, it's important to carefully consider the cache size. If the cache is too small, data will be evicted frequently, resulting in a low hit rate. On the other hand, if the cache is too large, it will use up a lot of memory and may contain data that is no longer needed.
 
 To optimize the use of the cache, you can define multiple pools with different cache sizes. For example, you can keep frequently accessed data in larger pools, while less frequently used data can be stored in smaller pools. This will help to ensure that the most relevant data is always available and that the cache is used efficiently.
 :::
 
 ## Redis server pool
 
-BeeORM allows you to connect to Redis or DragonflyDB server or sentinel servers using the RegisterRedis method. This method requires a connection URI in the format HOST:PORT, followed by a Redis keys namespace and the database number (0-15).
+FluxaORM allows you to connect to Redis or DragonflyDB server or sentinel servers using the RegisterRedis method. This method requires a connection URI in the format HOST:PORT, followed by a Redis keys namespace and the database number (0-15).
 
 Here are some examples of how to use the RegisterRedis method:
 
 ```go
 // pool with name "default", default options, pointing to Redis database #0:
-registry.RegisterRedis("localhost:6379", 0, orm.DefaultPoolCode, nil)
+registry.RegisterRedis("localhost:6379", 0, fluxaorm.DefaultPoolCode, nil)
 
 // pool with name "users", pointing to Redis database #1 with connection credentials:
 registry.RegisterRedis("/var/redis.sock", 1, "users", &orm.RedisOptions{User: "user", Password: "password"})

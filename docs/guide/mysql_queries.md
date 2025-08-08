@@ -3,8 +3,8 @@
 In this section, you will learn how to run SQL queries in MySQL. First, we need to configure the MySQL data pools and engine. In our example, we will create two pools - one with the name `default` and another with the name `users`:
 
 ```go
-registry := orm.NewRegistry()
-registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
+registry := fluxaorm.NewRegistry()
+registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", fluxaorm.DefaultPoolCode, nil)
 registry.RegisterMySQL("user:password@tcp(localhost:3306)/users", "users", nil)
 engine, err := registry.Validate()
 if err != nil {
@@ -56,7 +56,7 @@ To run a query that returns only one row, use the `QueryRow()` method:
 
 ```go{5}
 db := engine.DB(orm.DefaultPoolCode)
-where := orm.NewWhere("SELECT ID, Name FROM Cities WHERE ID = ?", 12)
+where := fluxaorm.NewWhere("SELECT ID, Name FROM Cities WHERE ID = ?", 12)
 var id uint64
 var name string
 found := db.QueryRow(orm, where, &id, &name)
@@ -103,7 +103,7 @@ Always put `defer Rollback()` after `Begin()`.
 
 ## Prepared statements
 
-Using MySQL prepared statements  with BeeORM is straightforward:
+Using MySQL prepared statements  with FluxaORM is straightforward:
 
 ```go
 db := engine.DB(orm.DefaultPoolCode)

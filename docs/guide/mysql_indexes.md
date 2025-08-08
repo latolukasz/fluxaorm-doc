@@ -1,10 +1,10 @@
 # MySQL Indexes
 
-In this section, you will learn how to define MySQL table indexes using BeeORM
+In this section, you will learn how to define MySQL table indexes using FluxaORM
 
 ## One Field in One Index
 
-In BeeORM, you can easily add each field to a MySQL index using special tags:
+In FluxaORM, you can easily add each field to a MySQL index using special tags:
  * `orm:"index=IndexName"` for a non-unique index
  * `orm:"unique=IndexName"` for a unique index
 
@@ -16,7 +16,7 @@ type PersonEntity struct {
     Name    string
     Age     uint8 `orm:"index=age"` 
     Email   string `orm:"unique=email;required"` 
-    Mother  orm.Reference[PersonEntity]
+    Mother  fluxaorm.Reference[PersonEntity]
 }
 ```
 
@@ -28,11 +28,11 @@ This will create the following indexes in the MySQL table:
   KEY `Mother` (`Mother`),
 ```
 
-Note that you don't need to define an index for one-to-one references (Mother) in BeeORM. It will create the index automatically, as it is required to create [foreign indexes](https://dev.mysql.com/doc/refman/8.0/en/create-table-foreign-keys.html).
+Note that you don't need to define an index for one-to-one references (Mother) in FluxaORM. It will create the index automatically, as it is required to create [foreign indexes](https://dev.mysql.com/doc/refman/8.0/en/create-table-foreign-keys.html).
 
 ## Many Fields in One Index
 
-Sometimes you may need to add more than one field to a single index. In BeeORM, you can do this by using the same index name for all fields and adding an extra suffix `:X`, where `X` is the position of the field within the index (starting from 1). You can skip the suffix for the first field (which is equivalent to using :1).
+Sometimes you may need to add more than one field to a single index. In FluxaORM, you can do this by using the same index name for all fields and adding an extra suffix `:X`, where `X` is the position of the field within the index (starting from 1). You can skip the suffix for the first field (which is equivalent to using :1).
 
 For example, the following Go code defines a ShoeEntity struct with a single unique index spanning three fields:
 
@@ -53,7 +53,7 @@ This will create the following unique index in the MySQL table:
 
 ## One Field in Many Indexes
 
-If you need to add a single field to multiple indexes, you can do so by separating the index names with a comma in the BeeORM tag. For example:
+If you need to add a single field to multiple indexes, you can do so by separating the index names with a comma in the FluxaORM tag. For example:
 
 ```go{4-5}
 type PersonEntity struct {
@@ -101,7 +101,7 @@ KEY `homeStreet` (`HomeAddressStreet`),
 KEY `workAddress` (`WorkAddressCity`, `WorkAddressStreet`),
 ```
 
-To define these indexes in BeeORM, you can use tag attributes on the `ID` field:
+To define these indexes in FluxaORM, you can use tag attributes on the `ID` field:
 
 ```go{2}
 type UserEntity struct {

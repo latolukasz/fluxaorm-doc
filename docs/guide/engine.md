@@ -1,6 +1,6 @@
 # Engine
 
-In previous sections, you learned how to create a `Registry` object and register entities with it. You should also know how to configure database connections by now. In this section, you will learn about the `Engine`, which is the heart of BeeORM.
+In previous sections, you learned how to create a `Registry` object and register entities with it. You should also know how to configure database connections by now. In this section, you will learn about the `Engine`, which is the heart of FluxaORM.
 
 ## Validating the Registry
 
@@ -9,7 +9,7 @@ To create an Engine, you first need to create a `Registry` object and register t
 ```go{16}
 package main
 
-import "github.com/latolukasz/orm"
+import "github.com/latolukasz/fluxaorm"
 
 type UserEntity struct {
 	ID   uint64
@@ -17,9 +17,9 @@ type UserEntity struct {
 }
 
 func main() {
-    registry := orm.NewRegistry()
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
-    registry.RegisterRedis("localhost:6379", 0, orm.DefaultPoolCode, nil)
+    registry := fluxaorm.NewRegistry()
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", fluxaorm.DefaultPoolCode, nil)
+    registry.RegisterRedis("localhost:6379", 0, fluxaorm.DefaultPoolCode, nil)
     registry.RegisterEntity(UserEntity{}) 
     
     engine, err := registry.Validate()
@@ -33,7 +33,7 @@ func main() {
 It is recommended to create the `Registry` object and call `registry.Validate()` only once in your application, when it starts. For example, if you are running an HTTP server, you should run the above code before the `http.ListenAndServe(":8080", nil)` line.
 :::
 
-The `Engine` object should be shared across all goroutines in your application. It serves as a read-only, validated source of BeeORM settings, including connection credentials and entity structures. You cannot use it to register more entities or connections - this should be done using a `Registry` object. In other words, the `Registry` is where you configure BeeORM, while the `Engine` is a read-only source of the resulting configuration.
+The `Engine` object should be shared across all goroutines in your application. It serves as a read-only, validated source of FluxaORM settings, including connection credentials and entity structures. You cannot use it to register more entities or connections - this should be done using a `Registry` object. In other words, the `Registry` is where you configure FluxaORM, while the `Engine` is a read-only source of the resulting configuration.
 
 
 ## Engine Registry
@@ -43,7 +43,7 @@ The `Engine` object provides method `Registry()` for accessing information about
 ```go{22,27,32,37}
 package main
 
-import "github.com/latolukasz/orm"
+import "github.com/latolukasz/fluxaorm"
 
 type CarEntity struct {
 	ID    uint64
@@ -51,9 +51,9 @@ type CarEntity struct {
 }
 
 func main() {
-    registry := orm.NewRegistry()
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
-    registry.RegisterRedis("localhost:6379", 0, orm.DefaultPoolCode, nil)
+    registry := fluxaorm.NewRegistry()
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", fluxaorm.DefaultPoolCode, nil)
+    registry.RegisterRedis("localhost:6379", 0, fluxaorm.DefaultPoolCode, nil)
     registry.RegisterLocalCache(orm.DefaultPoolCode, 0)
     registry.RegisterEntity(CarEntity{}) 
     engine, err := registry.Validate()

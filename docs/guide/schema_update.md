@@ -1,13 +1,13 @@
 # Schema Update
 
-One of the main benefits of using an ORM is the ability to generate and update a database schema based on the data structures in your code. In BeeORM, these data structures are represented as registered entities. There are two ways to generate or update the MySQL schema in BeeORM:
+One of the main benefits of using an ORM is the ability to generate and update a database schema based on the data structures in your code. In FluxaORM, these data structures are represented as registered entities. There are two ways to generate or update the MySQL schema in FluxaORM:
 
 The recommended approach is to use the `GetAlters()` function. This function compares the current MySQL schema in all the MySQL databases used by the registered entities and returns detailed information that can be used to update the schema. Here is an example of how to use the `GetAlters()` function:
 
 ```go{20}
 package main
 
-import "github.com/latolukasz/orm"
+import "github.com/latolukasz/fluxaorm"
 
 type CategoryEntity struct {
 	ID   uint64 `orm:"mysql=products"`
@@ -15,8 +15,8 @@ type CategoryEntity struct {
 }
 
 func main() {
-    registry := orm.NewRegistry()
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
+    registry := fluxaorm.NewRegistry()
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", fluxaorm.DefaultPoolCode, nil)
     registry.RegisterEntity(CategoryEntity{})
     engine, err := registry.Validate()
     if err != nil {
@@ -24,7 +24,7 @@ func main() {
     }
     orm := engine.NewORM(context.Background())
     
-    alters := orm.GetAlters(orm)
+    alters := fluxaorm.GetAlters(orm)
     for _, alter := range alters {
       alter.SQL // "CREATE TABLE `CategoryEntity` ..."
       alter.Pool // "products"
@@ -33,7 +33,7 @@ func main() {
 }  
 ```
 
-The Safe field of the orm.Alter object is false if any of the following conditions are met:
+The Safe field of the fluxaorm.Alter object is false if any of the following conditions are met:
 
  * The table needs to be dropped and is not empty.
  * At least one column needs to be removed or changed and the table is not empty.
@@ -53,7 +53,7 @@ Make sure to execute all the alters in the exact order they are returned by the 
 :::
 
 ::: warning
-BeeORM generates `DROP TABLE ...` queries for all tables in the registered MySQL database that are not mapped as entities. 
+FluxaORM generates `DROP TABLE ...` queries for all tables in the registered MySQL database that are not mapped as entities. 
 See [ignored tables](/guide/data_pools.html#ignored-tables) section how to register ignored MySQL tables.
 :::
 
@@ -63,7 +63,7 @@ You can also use the `orm.EntitySchema` object of an entity to update its databa
 
 ```go{2}
 orm := engine.NewORM(context.Background())
-entitySchema := orm.GetEntitySchema[CategoryEntity](orm)
+entitySchema := fluxaorm.GetEntitySchema[CategoryEntity](orm)
 alters, has := entitySchema.GetSchemaChanges(orm)
 if has {
     for _, alter := range alters {
@@ -79,7 +79,7 @@ For convenience, you can use the following short versions to execute all the nec
 
 ```go{3-4}
 orm := engine.NewORM(context.Background())
-entitySchema := orm.GetEntitySchema[CategoryEntity](orm)
+entitySchema := fluxaorm.GetEntitySchema[CategoryEntity](orm)
 entitySchema.UpdateSchema(engine) // executes all alters
 entitySchema.UpdateSchemaAndTruncateTable(engine) // truncates table and executes all alters
 ```
@@ -88,7 +88,7 @@ The `orm.EntitySchema` object also provides several useful methods for managing 
 
 ```go
 orm := engine.NewORM(context.Background())
-entitySchema := orm.GetEntitySchema[CategoryEntity](orm)
+entitySchema := fluxaorm.GetEntitySchema[CategoryEntity](orm)
 entitySchema.DropTable(orm) // drops the entire table
 entitySchema.TruncateTable(orm) // truncates the table
 ```

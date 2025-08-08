@@ -6,7 +6,7 @@ By default, every public entity field (which starts with an uppercase letter) is
 
 ## Integers
 
-Go offers a variety of integer types such as int8, int16, uint, and uint32, and BeeORM supports all of them.
+Go offers a variety of integer types such as int8, int16, uint, and uint32, and FluxaORM supports all of them.
 ```go{3-4}
 type PersonEntity struct {
     ID                 uint64
@@ -52,7 +52,7 @@ type PersonEntity struct {
 
 ## Floats
 
-Working with floating point values can be challenging. In BeeORM, you can use either float32 or float64 as your primitive type. You can then use special tags to specify how the float value should be stored in MySQL.
+Working with floating point values can be challenging. In FluxaORM, you can use either float32 or float64 as your primitive type. You can then use special tags to specify how the float value should be stored in MySQL.
 ```go{3-5}
 type PersonEntity struct {
     ID          uint64
@@ -75,7 +75,7 @@ All of the above MySQL fields are defined as NOT NULL. If you need to store a NU
 
 ## Booleans
 
-Working with boolean values is straightforward in BeeORM. You can use the bool type to store boolean values in MySQL. If you need to allow NULL values in your MySQL field, you can use the *bool type instead.
+Working with boolean values is straightforward in FluxaORM. You can use the bool type to store boolean values in MySQL. If you need to allow NULL values in your MySQL field, you can use the *bool type instead.
 
 ```go{3-4}
 type PersonEntity struct {
@@ -179,7 +179,7 @@ For a more detailed understanding, please refer to the example below:
 ```go
 package main
 
-import "github.com/latolukasz/orm"
+import "github.com/latolukasz/fluxaorm"
 
 type Color string
 
@@ -213,7 +213,7 @@ Here is a summary of the mapping between Go types and MySQL columns:
 
 ## One-to-One References
 
-In BeeORM, you can define a one-to-one reference between two entities by declaring a field with the type of the `Reference[EntityType]`:
+In FluxaORM, you can define a one-to-one reference between two entities by declaring a field with the type of the `Reference[EntityType]`:
 
 ```go{9}
 type CategoryEntity struct {
@@ -224,15 +224,15 @@ type CategoryEntity struct {
 type ProductEntity struct {
     ID       uint64
     Name     string  `orm:"required"`
-    Category orm.Reference[CategoryEntity] `orm:"required"`
+    Category fluxaorm.Reference[CategoryEntity] `orm:"required"`
 }
 ```
 
-In the example above, BeeORM will create a `Category bigint NOT NULL` column in the ProductEntity table. If the field is allowed to store NULL values, simply omit the orm:"required" tag.
+In the example above, FluxaORM will create a `Category bigint NOT NULL` column in the ProductEntity table. If the field is allowed to store NULL values, simply omit the orm:"required" tag.
 
 ## Subfields
 
-It is often useful to divide entity fields into logical groups, as this can help improve code readability and facilitate reuse of field definitions in other entities. In BeeORM, you can do this by creating a struct for the subfields and using it as the type of a field. For example:
+It is often useful to divide entity fields into logical groups, as this can help improve code readability and facilitate reuse of field definitions in other entities. In FluxaORM, you can do this by creating a struct for the subfields and using it as the type of a field. For example:
 
 ```go
 type Address struct  {
@@ -257,7 +257,7 @@ type CompanyEntity struct {
 
 You can also nest structs within structs to any desired level of complexity.
 
-When working with structs in BeeORM, a MySQL column is created for each field in the struct, with the field name added as a suffix to the column name. For example, the field `HomeAddress.Country` would be stored in a column named HomeAddressCountry varchar(255).
+When working with structs in FluxaORM, a MySQL column is created for each field in the struct, with the field name added as a suffix to the column name. For example, the field `HomeAddress.Country` would be stored in a column named HomeAddressCountry varchar(255).
 
 ## Anonymous Subfields
 
@@ -278,7 +278,7 @@ type UserEntity struct {
 }
 ```
 
-When using anonymous structs in BeeORM, the fields are represented in the MySQL table without a suffix. For example, the field Country would be stored in a column named `Country varchar(255)`.
+When using anonymous structs in FluxaORM, the fields are represented in the MySQL table without a suffix. For example, the field Country would be stored in a column named `Country varchar(255)`.
 
 ## Arrays
 
@@ -305,7 +305,7 @@ like `Alias_1 varchar(255)`, `Alias_2 varchar(255)` and so on.
 
 ## Ignored Fields
 
-Sometimes you may have public fields in an entity that should not be stored in the database. To instruct BeeORM to ignore a field, you can use the `orm:"ignore"` tag:
+Sometimes you may have public fields in an entity that should not be stored in the database. To instruct FluxaORM to ignore a field, you can use the `orm:"ignore"` tag:
 
 ```go{3}
 type UserEntity struct {
@@ -314,4 +314,4 @@ type UserEntity struct {
 }
 ```
 
-With this tag, BeeORM will not create a column for the `MyField` field in the MySQL table for the `UserEntity` entity. This can be useful in cases where you want to store additional information in the struct that is not relevant to the database.
+With this tag, FluxaORM will not create a column for the `MyField` field in the MySQL table for the `UserEntity` entity. This can be useful in cases where you want to store additional information in the struct that is not relevant to the database.

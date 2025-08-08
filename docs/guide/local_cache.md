@@ -6,7 +6,7 @@ First, we need to configure the data pools and engine. In this example, we will 
 without any limit, and `test`, which can hold up to 100 elements:
 
 ```go
-registry := orm.NewRegistry()
+registry := fluxaorm.NewRegistry()
 registry.RegisterLocalCache(orm.DefaultPoolCode, 0)
 registry.RegisterLocalCache("test", 100)
 registry.RegisterLocalCache(100, "test")

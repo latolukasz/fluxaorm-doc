@@ -1,10 +1,10 @@
 # Redis Operations
 
-BeeORM provides its own Redis client that can be used to execute all [Redis commands](https://redis.io/commands).
+FluxaORM provides its own Redis client that can be used to execute all [Redis commands](https://redis.io/commands).
 
 ```go
-registry := orm.NewRegistry()
-registry.RegisterRedis("localhost:6379", 0, orm.DefaultPoolCode, nil)
+registry := fluxaorm.NewRegistry()
+registry.RegisterRedis("localhost:6379", 0, fluxaorm.DefaultPoolCode, nil)
 registry.RegisterRedis("localhost:6379", 1, "test", nil)
 engine, err := registry.Validate()
 if err != nil {
@@ -32,7 +32,7 @@ config.GetAddress() // "localhost:6379"
 
 ## Standard Redis Operations
 
-Using the BeeORM Redis data pool, you can execute all Redis commands except [SELECT](https://redis.io/commands/select), as the database number for each Redis data pool is already defined.
+Using the FluxaORM Redis data pool, you can execute all Redis commands except [SELECT](https://redis.io/commands/select), as the database number for each Redis data pool is already defined.
 
 ```go
 redisPool := engine.Redis(orm.DefaultPoolCode)

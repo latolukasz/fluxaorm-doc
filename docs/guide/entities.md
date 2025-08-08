@@ -1,6 +1,6 @@
 # Entities
 
-In BeeORM, an Entity is a struct that represents data stored in a database. In this section, you will learn how to define golang structs as Entity types.
+In FluxaORM, an Entity is a struct that represents data stored in a database. In this section, you will learn how to define golang structs as Entity types.
 
 ## Defining an Entity
 
@@ -9,7 +9,7 @@ To define an Entity struct, you must follow one rule - the first field of the st
 Here is an example of a simple Entity struct:
 
 ```go
-import "github.com/latolukasz/orm"
+import "github.com/latolukasz/fluxaorm"
 
 type SimpleEntity struct {
 	ID uint64
@@ -21,7 +21,7 @@ type SimpleEntity struct {
 In order to use an entity in orm, it must be registered in the Registry:
 
 ```go{2}
-registry := orm.NewRegistry()
+registry := fluxaorm.NewRegistry()
 registry.RegisterEntity(&entity.UserEntity{}) 
 ```
 
@@ -36,7 +36,7 @@ for `orm.ORM` field:
 ```go{6,10}
 package main
 
-import "github.com/latolukasz/orm"
+import "github.com/latolukasz/fluxaorm"
 
 type UserEntity struct {
 	ID  uint64  // equal to `orm:"mysql=default"`
@@ -47,8 +47,8 @@ type OrderEntity struct {
 }
 
 func main() {
-    registry := orm.NewRegistry()
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
+    registry := fluxaorm.NewRegistry()
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", fluxaorm.DefaultPoolCode, nil)
     registry.RegisterMySQL("user:password@tcp(localhost:3307)/db", "sales", nil)
     registry.RegisterEntity(OrderEntity{}) 
 }  
@@ -56,7 +56,7 @@ func main() {
 
 ### Redis pool
 
-To protect MySQL from unnecessary queries, entities can be automatically cached in Redis. To enable Redis cache for an entity, use the setting redisCache=pool_name in the orm tag of the orm.ORM field. This specifies which Redis server or Sentinel pool should be used to store the data.
+To protect MySQL from unnecessary queries, entities can be automatically cached in Redis. To enable Redis cache for an entity, use the setting redisCache=pool_name in the orm tag of the fluxaorm.ORM field. This specifies which Redis server or Sentinel pool should be used to store the data.
 
 For a pool with the name default, you can use the short version orm:"redisCache" without specifying the pool name.
 
@@ -65,7 +65,7 @@ Here is an example in Go code:
 ```go{6,10}
 package main
 
-import "github.com/latolukasz/orm"
+import "github.com/latolukasz/fluxaorm"
 
 type UserEntity struct {
 	ID uint64 `orm:"redisCache"`
@@ -76,9 +76,9 @@ type OrderEntity struct {
 }
 
 func main() {
-    registry := orm.NewRegistry()
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
-    RegisterRedis("localhost:6379", 0, orm.DefaultPoolCode, nil)
+    registry := fluxaorm.NewRegistry()
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", fluxaorm.DefaultPoolCode, nil)
+    RegisterRedis("localhost:6379", 0, fluxaorm.DefaultPoolCode, nil)
     RegisterRedis("localhost:6390", 0, "sales", nil)
     registry.RegisterEntity(UserEntity{}, &OrderEntity{}) 
 }  
@@ -87,7 +87,7 @@ func main() {
 ::: tip
 To optimize Redis as a cache for entities, it is recommended to set the maxmemory setting to a value below the machine's memory size, and enable the allkeys-lru policy. This will prevent Redis from using too much memory and potentially crashing the application.
 
-Additionally, it is a good idea to disable persistence storage in Redis. If data is lost, BeeORM will automatically refill it from MySQL, ensuring top performance and preventing the application from going down.
+Additionally, it is a good idea to disable persistence storage in Redis. If data is lost, FluxaORM will automatically refill it from MySQL, ensuring top performance and preventing the application from going down.
 :::
 
 ### Local in-memory pool
@@ -98,7 +98,7 @@ Optionally you can define local cache size.
 ```go{6,10}
 package main
 
-import "github.com/latolukasz/orm"
+import "github.com/latolukasz/fluxaorm"
 
 type CategoryEntity struct {
 	ID uint16 `orm:"localCache"` // equal to localcache=0
@@ -109,8 +109,8 @@ type BrandEntity struct {
 }
 
 func main() {
-    registry := orm.NewRegistry()
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", orm.DefaultPoolCode, nil)
+    registry := fluxaorm.NewRegistry()
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", fluxaorm.DefaultPoolCode, nil)
     registry.RegisterEntity(CategoryEntity{}, &BrandEntity{}) 
 }  
 ```
@@ -118,7 +118,7 @@ func main() {
 
 ### Using Both Redis and Local Cache Simultaneously
 
-It is possible to cache an Entity in both a local cache and Redis using BeeORM. To do so, you can use the following syntax:
+It is possible to cache an Entity in both a local cache and Redis using FluxaORM. To do so, you can use the following syntax:
 
 ```go{2}
 type CategoryEntity struct {
@@ -131,7 +131,7 @@ This allows you to take advantage of the benefits of both types of caching in yo
 ::: tip
 It is highly recommended to enable both local caching and Redis caching for Entity in your application. This can greatly improve the performance of your system by reducing the number of queries made to the MySQL database.
 
-When data is requested and not found in the local cache, BeeORM will try to load it from the Redis cache. If the data is still not available, it will be retrieved from MySQL, stored in Redis, and then also stored in the local cache. This means that subsequent requests for the same data from the same machine will be served from the local cache, while requests from other machines will be served from the Redis cache.
+When data is requested and not found in the local cache, FluxaORM will try to load it from the Redis cache. If the data is still not available, it will be retrieved from MySQL, stored in Redis, and then also stored in the local cache. This means that subsequent requests for the same data from the same machine will be served from the local cache, while requests from other machines will be served from the Redis cache.
 
 Enabling both local caching and Redis caching helps to distribute the load on the MySQL database and can be especially useful when your code is running on multiple physical servers or when you are using autoscaling based on traffic.
 :::
@@ -139,7 +139,7 @@ Enabling both local caching and Redis caching helps to distribute the load on th
 
 ### Customizing the Entity Table Name
 
-By default, BeeORM will use the name of the Entity struct as the name of the corresponding MySQL table. However, you can specify a custom table name by using the table tag setting:
+By default, FluxaORM will use the name of the Entity struct as the name of the corresponding MySQL table. However, you can specify a custom table name by using the table tag setting:
 
 ```go{2}
 type UserEntity struct {

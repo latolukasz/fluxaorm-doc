@@ -1,9 +1,9 @@
 # ORM
 
-In this section, we will explore the fundamental element of BeeORM: the `orm.ORM` object, and discover how to create and effectively employ it.
+In this section, we will explore the fundamental element of FluxaORM: the `orm.ORM` object, and discover how to create and effectively employ it.
 
 In the previous chapter, you gained insight into creating the `Engine` object, an essential component for accessing data pools and managing registered entities. 
-The `orm.ORM` plays a pivotal role in all BeeORM methods, typically serving as the initial argument, facilitating data retrieval and modification in your databases, which forms the cornerstone of every ORM's functionality.
+The `orm.ORM` plays a pivotal role in all FluxaORM methods, typically serving as the initial argument, facilitating data retrieval and modification in your databases, which forms the cornerstone of every ORM's functionality.
 
 ## Creating the ORM
 
@@ -15,11 +15,11 @@ package main
 
 import (
 	"context"
-    "github.com/latolukasz/orm"
+    "github.com/latolukasz/fluxaorm"
 )
 
 func main() {
-    registry := orm.NewRegistry()
+    registry := fluxaorm.NewRegistry()
     // ... register data pools and entities
     engine, err := registry.Validate()
     if err != nil {
@@ -48,7 +48,7 @@ Here is an example of how the debug output looks:
 
 Every query is displayed in two lines. The first line (with a white background) contains the following fields:
 
-* BeeORM logo
+* FluxaORM logo
 * query source (MySQL, redis, local cache)
 * data pool name
 * operation
@@ -88,7 +88,7 @@ orm := engine.NewORM(context.Background())
 orm.SetMetaData("admin_user_id", "34")
 orm.EnableQueryDebug()
 go func() {
-    orm2 := orm.Clone()
+    orm2 := fluxaorm.Clone()
     orm2.GetMetaData() // {"admin_user_id", "34"}
 }()
 ```

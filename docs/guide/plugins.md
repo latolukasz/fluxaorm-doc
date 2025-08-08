@@ -1,36 +1,36 @@
 # Plugins
 
-BeeORM's functionality can be extended by incorporating plugins.
+FluxaORM's functionality can be extended by incorporating plugins.
 
 ## Enabling Plugins
 
-Activating plugins in BeeORM is a simple process. To get started, register the desired plugin using the `RegisterPlugin()` method, as demonstrated in the example below:
+Activating plugins in FluxaORM is a simple process. To get started, register the desired plugin using the `RegisterPlugin()` method, as demonstrated in the example below:
 
 ```go{10}
 package main
 
 import (
-    "github.com/latolukasz/orm"
-    "github.com/latolukasz/orm/plugins/modified"
+    "github.com/latolukasz/fluxaorm"
+    "github.com/latolukasz/fluxaorm/plugins/modified"
 )
 
 func main() {
-  registry := orm.NewRegistry()
+  registry := fluxaorm.NewRegistry()
   registry.RegisterPlugin(modified.New("Added", "Updated"))
 }
 ```
 
-BeeORM offers a variety of built-in plugins, which can be explored further in the [Plugins](/plugins/) section.
+FluxaORM offers a variety of built-in plugins, which can be explored further in the [Plugins](/plugins/) section.
 
 ## Creating a Custom Plugin
 
-To tailor BeeORM to your specific needs, you have the flexibility to craft your own custom plugin by implementing at least one of the following interfaces.
+To tailor FluxaORM to your specific needs, you have the flexibility to craft your own custom plugin by implementing at least one of the following interfaces.
 
 ### ValidateRegistry Interface
 
 ```go
 type PluginInterfaceValidateRegistry interface {
-	ValidateRegistry(engine orm.EngineSetter, registry orm.Registry) error
+	ValidateRegistry(engine fluxaorm.EngineSetter, registry fluxaorm.Registry) error
 }
 ```
 
@@ -40,7 +40,7 @@ The first argument, `EngineSetter`, empowers you to define additional parameters
 ```go
 type MyPlugin struct {}
 
-func (p *MyPlugin) ValidateRegistry(engine orm.EngineSetter, registry orm.Registry) error {
+func (p *MyPlugin) ValidateRegistry(engine fluxaorm.EngineSetter, registry fluxaorm.Registry) error {
     // perform custom actions
     engine.SetOptions("orm-started", time.Now())
     return nil
@@ -59,7 +59,7 @@ This mechanism allows you to enrich the behavior of the `Engine` during initiali
 
 ```go
 type PluginInterfaceInitRegistryFromYaml interface {
-	InitRegistryFromYaml(registry orm.Registry, yaml map[string]interface{}) error
+	InitRegistryFromYaml(registry fluxaorm.Registry, yaml map[string]interface{}) error
 }
 ```
 
@@ -70,7 +70,7 @@ For instance:
 ```go
 type MyPlugin struct {}
 
-func (p *MyPlugin) InitRegistryFromYaml(registry orm.Registry, yaml map[string]interface{}) error {
+func (p *MyPlugin) InitRegistryFromYaml(registry fluxaorm.Registry, yaml map[string]interface{}) error {
     if yaml["MyPluginEnabled"] == true {
         registry.SetOption("IsMyPluginEnabled", true)
     }
@@ -84,13 +84,13 @@ Subsequently, in your code, you can retrieve registry options:
 isEnabled := engine.Registry().Option("IsMyPluginEnabled") == true
 ```
 
-This functionality allows you to customize the initialization process based on data loaded from YAML files, offering greater flexibility in configuring BeeORM entities.
+This functionality allows you to customize the initialization process based on data loaded from YAML files, offering greater flexibility in configuring FluxaORM entities.
 
 ### ValidateEntitySchema Interface
 
 ```go
 type PluginInterfaceValidateEntitySchema interface {
-	ValidateEntitySchema(schema orm.EntitySchemaSetter) error
+	ValidateEntitySchema(schema fluxaorm.EntitySchemaSetter) error
 }
 ```
 
@@ -99,7 +99,7 @@ The `PluginInterfaceValidateEntitySchema` interface is executed for each entity 
 ```go
 type MyPlugin struct {}
 
-func (p *MyPlugin) ValidateEntitySchema(schema orm.EntitySchemaSetter) error {
+func (p *MyPlugin) ValidateEntitySchema(schema fluxaorm.EntitySchemaSetter) error {
     schema.SetOption("my-plugin-schema-option", "Some value")
     return nil
 }
@@ -108,7 +108,7 @@ func (p *MyPlugin) ValidateEntitySchema(schema orm.EntitySchemaSetter) error {
 Subsequently, in your code, you can access entity schema options:
 
 ```go
-schema := orm.GetEntitySchema[MyEntity](orm)
+schema := fluxaorm.GetEntitySchema[MyEntity](orm)
 value := schema.Option("my-plugin-schema-option")
 ```
 
@@ -118,7 +118,7 @@ This interface empowers you to enhance the behavior of individual entity schemas
 
 ```go
 type PluginInterfaceEntityFlush interface {
-	EntityFlush(schema orm.EntitySchema, entity reflect.Value, before, after orm.Bind, engine orm.Engine) (orm.PostFlushAction, error)
+	EntityFlush(schema fluxaorm.EntitySchema, entity reflect.Value, before, after fluxaorm.Bind, engine fluxaorm.Engine) (orm.PostFlushAction, error)
 }
 ```
 
@@ -133,12 +133,12 @@ Here's an illustrative example:
 ```go
 type MyPlugin struct {}
 
-func (p *MyPlugin) EntityFlush(schema orm.EntitySchema, entity reflect.Value, before, after orm.Bind, engine orm.Engine) (orm.PostFlushAction, error) {
+func (p *MyPlugin) EntityFlush(schema fluxaorm.EntitySchema, entity reflect.Value, before, after fluxaorm.Bind, engine fluxaorm.Engine) (orm.PostFlushAction, error) {
     now := time.Now().UTC()
     if before == nil && after != nil { // INSERT
         after["CreatedAt"] = now.Format(time.RFC3339)
     }
-    return func(_ orm.ORM) {
+    return func(_ fluxaorm.ORM) {
         entity.FieldByName("CreatedAt").Set(reflect.ValueOf(now))
     }, nil
 }

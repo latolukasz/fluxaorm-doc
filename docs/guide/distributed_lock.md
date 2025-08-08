@@ -1,6 +1,6 @@
 # Distributed Lock
 
-In some cases, you may need a mechanism to control access to a shared resource from multiple services. While it is easy to limit access to a resource within a single Go application using [sync.Mutex](https://tour.golang.org/concurrency/9), doing so across multiple instances of an application can be more challenging. BeeORM's `Locker` feature can help you create a shared, distributed lock to solve this problem. Behind the scenes, Locker uses Redis, so as long as all your application instances have access to the same Redis instance, you can use Locker to implement a distributed lock:
+In some cases, you may need a mechanism to control access to a shared resource from multiple services. While it is easy to limit access to a resource within a single Go application using [sync.Mutex](https://tour.golang.org/concurrency/9), doing so across multiple instances of an application can be more challenging. FluxaORM's `Locker` feature can help you create a shared, distributed lock to solve this problem. Behind the scenes, Locker uses Redis, so as long as all your application instances have access to the same Redis instance, you can use Locker to implement a distributed lock:
 
 ```go{
 locker := engine.Redis(orm.DefaultPoolCode).GetLocker()

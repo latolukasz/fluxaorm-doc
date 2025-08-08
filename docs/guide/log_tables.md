@@ -1,7 +1,7 @@
 # Log tables
 
 In many applications it's required to log all data changes.
-BeeORM provides a feature called that helps you store
+FluxaORM provides a feature called that helps you store
 all changes in special MySQL log [archive](https://dev.mysql.com/doc/refman/8.0/en/archive-storage-engine.html) table. 
 
 In our example we will use `UserEntity`:
@@ -18,7 +18,7 @@ type UserEntity struct {
 To enable log table simply register `orm.LogEntity` with a `UserEntity` attribute:
 
 ```go{2}
-registry := orm.NewRegistry()
+registry := fluxaorm.NewRegistry()
 registry.RegisterEntity(orm.LogEntity[UserEntity]{})
 ```
 Now when you run [database schema update](/guide/schema_update.html#updating-database-schema)
@@ -45,7 +45,7 @@ You can define which MySQL database (data pool) should be used to store this tab
 
 ```go{2}
 type UserEntity struct {
-    orm.ORM `orm:"log-pool=logs"`
+    fluxaorm.ORM `orm:"log-pool=logs"`
     ID         uint
     Name       string
     Age        uint8
@@ -62,7 +62,7 @@ server to store all log tables (see example above).
 Now it's time to save some data and see our first logs:
 
 ```go
-user := orm.NewEntity[UserEntity](orm)
+user := fluxaorm.NewEntity[UserEntity](orm)
 user.Name = "Adam"
 user.Age = 39
 c.Flush()
@@ -99,7 +99,7 @@ Log tables has 6 columns:
 Now let's update our user:
 
 ```go
-user = orm.EditEntity(orm, user)
+user = fluxaorm.EditEntity(orm, user)
 user.Age = 18
 c.Flush()
 ```
@@ -141,7 +141,7 @@ You can  register log meta data in `orm.ORM`:
 
 ```go{1}
 c.SetMetaData("ip", "213.22.11.24")
-user := orm.NewEntity[UserEntity](orm)
+user := fluxaorm.NewEntity[UserEntity](orm)
 user.Name = "Tom"
 user.Age = 20
 c.Flush()
