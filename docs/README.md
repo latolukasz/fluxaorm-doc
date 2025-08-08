@@ -7,7 +7,7 @@ heroImageDark: logoDark.svg
 tagline: Golang ORM designed for optimal performance with MySQL, Redis and Redis Query Engine
 actionText: Quick Start →
 actionLink: /guide/
-footer: MIT Licensed | Copyright © 2023-present Łukasz Lato
+footer: MIT Licensed | Copyright © 2024-present Łukasz Lato
 actions:
 - text: Quick Start →
   link: /guide/
