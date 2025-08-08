@@ -1,5 +1,6 @@
+import { viteBundler } from '@vuepress/bundler-vite'
 import { defineUserConfig } from 'vuepress'
-import { defaultTheme } from 'vuepress'
+import { defaultTheme } from '@vuepress/theme-default'
 import { googleAnalyticsPlugin } from '@vuepress/plugin-google-analytics'
 import { searchPlugin } from '@vuepress/plugin-search'
 
@@ -10,6 +11,10 @@ export default defineUserConfig({
   head: [
     ['link', { rel: 'icon', href: '/favicon.ico' }]
   ],
+  bundler: viteBundler({
+    viteOptions: {},
+    vuePluginOptions: {},
+  }),
   plugins: [
     googleAnalyticsPlugin({
       id: 'UA-195751907-1',
@@ -17,10 +22,11 @@ export default defineUserConfig({
     searchPlugin({})
   ],
   theme: defaultTheme({
-    logo: '/logo-small.svg',
-    logoDark: '/logo-small-dark.svg',
+    logo: '/logo-small2.svg',
+    logoDark: '/logo-small-dark2.svg',
     repo: 'https://github.com/latolukasz/fluxaorm',
     docsRepo: 'https://github.com/latolukasz/fluxaorm-doc',
+    colorMode: 'dark',
     docsBranch: 'v3',
     docsDir: 'docs',
     contributors: false,
