@@ -61,6 +61,7 @@ export default defineUserConfig({
             'crud',
             'async_flush',
             'search',
+            'redis_search',
             'mysql_queries',
             'local_cache',
             'redis_operations',
