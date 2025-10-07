@@ -69,6 +69,17 @@ image2.Url = "image2.png"
 err := c.Flush() // two rows are inserted into MySQL table
 ```
 
+You can also create new entity with `NewEntityFromSource()` function:
+
+```go
+image1 := &ImageEntity{
+    Url: "image1.png",
+}
+fluxaorm.NewEntityFromSource[ImageEntity](orm, image1) // registers image1 in orm context
+err := c.Flush() // row is inserted into MySQL table
+```
+
+
 If you are unsure about the entity type, perhaps knowing only the entity name, you can generate a new instance by employing the `NewEntity()` method within the _[entity schema](/guide/entity_schema.html)_ as illustrated below in Go:
 
 ```go
