@@ -159,3 +159,11 @@ SELECT * FROM _LogEntity_default_UserEntity\G;
    Before: NULL
     After: {"Name": "Tom", "Age": 20}
 ```
+
+## Disabling log tables
+
+You can disable log tables globally for all entities:
+
+```go
+engine.Registry().DisableLogTables() // disable log tables globally
+```
