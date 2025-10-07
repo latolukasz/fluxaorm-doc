@@ -5,10 +5,10 @@ In this section, we will explore the fundamental element of FluxaORM: the `orm.O
 In the previous chapter, you gained insight into creating the `Engine` object, an essential component for accessing data pools and managing registered entities. 
 The `orm.ORM` plays a pivotal role in all FluxaORM methods, typically serving as the initial argument, facilitating data retrieval and modification in your databases, which forms the cornerstone of every ORM's functionality.
 
-## Creating the ORM
+## Creating the ORM Context
 
-To instantiate a `orm.ORM` object, you should invoke the `NewORM()` method on a `orm.Engine` object. 
-Here's a comprehensive example illustrating how to create a `orm.ORM`:
+To instantiate a `orm.Context` object, you should invoke the `NewContext()` method on a `orm.Engine` object. 
+Here's a comprehensive example illustrating how to create a `orm.Context`:
 
 ```go{15}
 package main
@@ -25,7 +25,7 @@ func main() {
     if err != nil {
         panic(err)
     }
-    orm := engine.NewORM(context.Background())
+    orm := engine.NewContext(context.Background())
 }  
 ```
 
@@ -72,11 +72,11 @@ Nevertheless, if you wish to share context settings like metadata or debug mode 
 as demonstrated in the example below:
 
 ```go{6,7}
-orm := engine.NewORM(context.Background())
+orm := engine.NewContext(context.Background())
 orm.SetMetaData("admin_user_id", 34)
 orm.EnableQueryDebug()
 
-orm2 := engine.NewORM(context.Background())
+orm2 := engine.NewContext(context.Background())
 orm2.SetMetaData(orm.GetMetaData())
 orm2.EnableQueryDebug()
 ```
@@ -84,7 +84,7 @@ orm2.EnableQueryDebug()
 To address this issue, the `orm.ORM` provides a specialized method called `Clone()`, which generates a new instance of the `ORM` containing a copy of the metadata and inherits the metadata and debug mode is the same as in cloned Context:
 
 ```go{5}
-orm := engine.NewORM(context.Background())
+orm := engine.NewContext(context.Background())
 orm.SetMetaData("admin_user_id", "34")
 orm.EnableQueryDebug()
 go func() {
@@ -96,6 +96,6 @@ go func() {
 Alternatively, you can clone a `ORM` and provide a new context.Context as an argument using the `CloneWithContext()` method:
 
 ```go{2}
-orm := engine.NewORM(context.Background())
+orm := engine.NewContext(context.Background())
 orm2 := engine.CloneWithContext(context.WithDeadline(c.Ctx(), time.Now().Add(time.Second * 5)))
 ```

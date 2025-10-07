@@ -5,7 +5,7 @@ The `EntitySchema` object holds information about every registered entity. There
 Using ` GetEntitySchema()` function:
 
 ```go{2}
-orm := engine.NewORM(context.Background())
+orm := engine.NewContext(context.Background())
 entitySchema := fluxaorm.GetEntitySchema[CarEntity](orm)
 ```
 

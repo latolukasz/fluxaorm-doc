@@ -30,7 +30,7 @@ func main() {
     if err != nil {
         panic(err)
     }
-    orm := engine.NewORM(context.Background())
+    orm := engine.NewContext(context.Background())
     
     categoryCars := fluxaorm.NewEntity[CategoryEntity](orm)
     categoryCars.Name = "Cars"
@@ -58,7 +58,7 @@ func main() {
     if err != nil {
         panic(err)
     }
-    orm := engine.NewORM(context.Background())
+    orm := engine.NewContext(context.Background())
 
     ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
     defer stop()
@@ -90,7 +90,7 @@ To halt its execution, it's necessary to cancel the context used in creating `fl
 
 ```go
  ctx, close := context.WithCancel()
- orm := engine.NewORM(ctx)
+ orm := engine.NewContext(ctx)
  go func() {
     err := fluxaorm.ConsumeAsyncFlushEvents(orm, true)
  }()

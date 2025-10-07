@@ -42,7 +42,7 @@ func main() {
     if err != nil {
         panic(err)
     }
-    orm := engine.NewORM(context.Background())
+    orm := engine.NewContext(context.Background())
 }  
 ```
 

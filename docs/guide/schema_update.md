@@ -22,7 +22,7 @@ func main() {
     if err != nil {
         panic(err)
     }
-    orm := engine.NewORM(context.Background())
+    orm := engine.NewContext(context.Background())
     
     alters := fluxaorm.GetAlters(orm)
     for _, alter := range alters {
@@ -62,7 +62,7 @@ See [ignored tables](/guide/data_pools.html#ignored-tables) section how to regis
 You can also use the `orm.EntitySchema` object of an entity to update its database schema. Here is an example:
 
 ```go{2}
-orm := engine.NewORM(context.Background())
+orm := engine.NewContext(context.Background())
 entitySchema := fluxaorm.GetEntitySchema[CategoryEntity](orm)
 alters, has := entitySchema.GetSchemaChanges(orm)
 if has {
@@ -78,7 +78,7 @@ if has {
 For convenience, you can use the following short versions to execute all the necessary alters:
 
 ```go{3-4}
-orm := engine.NewORM(context.Background())
+orm := engine.NewContext(context.Background())
 entitySchema := fluxaorm.GetEntitySchema[CategoryEntity](orm)
 entitySchema.UpdateSchema(engine) // executes all alters
 entitySchema.UpdateSchemaAndTruncateTable(engine) // truncates table and executes all alters
@@ -87,7 +87,7 @@ entitySchema.UpdateSchemaAndTruncateTable(engine) // truncates table and execute
 The `orm.EntitySchema` object also provides several useful methods for managing the entity table:
 
 ```go
-orm := engine.NewORM(context.Background())
+orm := engine.NewContext(context.Background())
 entitySchema := fluxaorm.GetEntitySchema[CategoryEntity](orm)
 entitySchema.DropTable(orm) // drops the entire table
 entitySchema.TruncateTable(orm) // truncates the table
