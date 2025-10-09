@@ -49,7 +49,7 @@ for _, alter := range alters {
 ```
 
 ::: tip
-Make sure to execute all the alters in the exact order they are returned by the GetAlters() method. Often, a previous alter is required for a subsequent one, for example, creating an index on a column before defining a foreign key on it.
+Make sure to execute all the alters in the exact order they are returned by the GetAlters() method.
 :::
 
 ::: warning

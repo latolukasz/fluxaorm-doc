@@ -28,7 +28,7 @@ This will create the following indexes in the MySQL table:
   KEY `Mother` (`Mother`),
 ```
 
-Note that you don't need to define an index for one-to-one references (Mother) in FluxaORM. It will create the index automatically, as it is required to create [foreign indexes](https://dev.mysql.com/doc/refman/8.0/en/create-table-foreign-keys.html).
+Note that you don't need to define an index for one-to-one references (Mother) in FluxaORM. It will create the index automatically.
 
 ## Many Fields in One Index
 
