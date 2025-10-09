@@ -49,16 +49,18 @@ func main() {
 ## Saving New Entities
 
 To insert a new entity into database you need to create new instance with `NewEntity()` function and run `orm.ORM` method
-`Flush()`. See below example:
+`FlushWithCheck()`. See below example:
 
 ```go
 categoryCars := fluxaorm.NewEntity[CategoryEntity](orm)
 categoryCars.Code = "cars"
 categoryCars.Name = "Cars"
-err := c.Flush()
+err := c.FlushWithCheck()
 ```
 
-When method `Flush()` of `orm.ORM` is executed all entities created with `NewEntity()` with this `orm.Context` function are
+You can also run `FLush()` which panics if there is an error.
+
+When method `FlushWithCheck()` of `orm.ORM` is executed all entities created with `NewEntity()` with this `orm.Context` function are
 inserted into MySQL and cache is updated. Below example demonstrates how to insert into MySQL multiple entities at once:
 
 ```go
@@ -66,7 +68,7 @@ image1 := fluxaorm.NewEntity[ImageEntity](orm)
 image1.Url = "image1.png"
 image2 := fluxaorm.NewEntity[ImageEntity](orm)
 image2.Url = "image2.png"
-err := c.Flush() // two rows are inserted into MySQL table
+err := c.FlushWithCheck() // two rows are inserted into MySQL table
 ```
 
 You can also create new entity with `NewEntityFromSource()` function:
@@ -76,7 +78,7 @@ image1 := &ImageEntity{
     Url: "image1.png",
 }
 fluxaorm.NewEntityFromSource[ImageEntity](orm, image1) // registers image1 in orm context
-err := c.Flush() // row is inserted into MySQL table
+err := c.FlushWithCheck() // row is inserted into MySQL table
 ```
 
 
@@ -97,7 +99,7 @@ image.Url = "image1.png"
 brandVolvo := fluxaorm.NewEntity[BrandEntity](orm)
 brandVolvo.Name = "Volvo"
 brandVolvo.Logo = fluxaorm.Reference[ImageEntity](image.ID)
-err := c.Flush()
+err := c.FlushWithCheck()
 ```
 
 ## Unique indexes
@@ -110,12 +112,12 @@ as demonstrated in the following example:
 ```go
 categoryCars := fluxaorm.NewEntity[CategoryEntity](orm)
 categoryCars.Code = "cars"
-err := c.Flush() // nil, row is inserted to MySQL table
+err := c.FlushWithCheck() // nil, row is inserted to MySQL table
 
 anotherCategory:= fluxaorm.NewEntity[CategoryEntity](orm)
 categoryCars.Code = "cars"
 // returns fluxaorm.DuplicatedKeyBindError{Index: "code", ID: 84984747727443, Columns: ["Code"]}
-err = c.Flush() 
+err = c.FlushWithCheck() 
 ```
 
 Every time an entity is added, updated, or deleted, the values in the Redis set that stores information about the unique key are updated. 
@@ -275,7 +277,7 @@ In this approach, you begin by obtaining the entity from the database and then c
 product, found := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
 newVersionOfProduct := fluxaorm.EditEntity(orm, product)
 newVersionOfProduct.Name = "New name"
-c.Flush()
+c.Flush() 
 ```
 
 It is essential to note that after executing `Flush()`, if you intend to edit the same entity again, you must rerun the `EditEntity()` function, as demonstrated in the corrected approach below:
@@ -374,7 +376,7 @@ newProduct.Category = fluxaorm.Reference[CategoryEntity](categoryCars.ID)
 oldImage, found := fluxaorm.GetByID[ImageEntity](orm, 277498837423)
 orm.DelteEntity(orm, oldImage)
 
-err := c.Flush()
+err := c.FlushWithCheck()
 ```
 
 ## Cloning entities

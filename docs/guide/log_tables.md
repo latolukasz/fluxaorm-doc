@@ -145,7 +145,6 @@ user := fluxaorm.NewEntity[UserEntity](orm)
 user.Name = "Tom"
 user.Age = 20
 c.Flush()
-c.Flush()
 ```
 
 ```sql
