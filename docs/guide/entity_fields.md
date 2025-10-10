@@ -204,6 +204,18 @@ type UserEntity struct {
     HatedColors     []Color
 }
 ```
+
+You can also return `[]string:
+
+```go
+type Color string
+
+func (c Color) EnumValues() any {
+	return []string{"red", "blue", "yellow"}
+}
+```
+
+
 Here is a summary of the mapping between Go types and MySQL columns:
 
 | go      |         MySQL         |
