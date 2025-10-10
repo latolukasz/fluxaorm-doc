@@ -215,7 +215,6 @@ func (c Color) EnumValues() any {
 }
 ```
 
-
 Here is a summary of the mapping between Go types and MySQL columns:
 
 | go      |         MySQL         |
