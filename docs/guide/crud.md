@@ -81,6 +81,15 @@ fluxaorm.NewEntityFromSource[ImageEntity](orm, image1) // registers image1 in or
 err := c.FlushWithCheck() // row is inserted into MySQL table
 ```
 
+You can also create new entity with `NewEntity()` method in orm context:
+
+```go
+image1 := &ImageEntity{
+    Url: "image1.png",
+}
+orm.NewEntity(image1)
+err := c.FlushWithCheck() // row is inserted into MySQL table
+```
 
 If you are unsure about the entity type, perhaps knowing only the entity name, you can generate a new instance by employing the `NewEntity()` method within the _[entity schema](/guide/entity_schema.html)_ as illustrated below in Go:
 
@@ -295,6 +304,16 @@ c.Flush() // Executes UPDATE ProductEntity SET Name = "Another name"
 
 This ensures the proper handling of entity updates. However, it's worth noting that this approach may lead to high memory usage due to the allocation of memory for all entity fields, even if only a few fields are updated.
 
+You can elso edit entity with `EditEntity()` method in orm context:
+
+```go
+product, found := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
+newVersionOfProduct := orm.EditEntity(product)
+newVersionOfProduct.Name = "New name"
+c.Flush() // Executes UPDATE ProductEntity SET Name = "New name"
+```
+
+
 ### Method 2: Using EditEntityField
 
 An alternative method involves using the `EditEntityField()` function to define new values for specific entity fields. Afterward, the `Flush()` method is employed to execute all changes and apply the new values to the entity and its cache. The example below illustrates this approach:
@@ -345,9 +364,17 @@ Deleting entity is very simple. See below example:
 
 ```go
 product, found := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
-orm.DeleteEntity(orm, entity)
+fluxaorm.DeleteEntity(orm, entity)
 c.Flush()
 ```
+
+```go
+product, found := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
+orm.DeleteEntity(entity)
+c.Flush()
+```
+
+
 ## Multiple CRUD operations
 
 When you find yourself needing to perform numerous CRUD operations concurrently, it is highly advisable to execute them in a single 
