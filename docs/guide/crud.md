@@ -111,49 +111,6 @@ brandVolvo.Logo = fluxaorm.Reference[ImageEntity](image.ID)
 err := c.FlushWithCheck()
 ```
 
-## Unique indexes
-
-In many scenarios, entities maintain [unique indexes](https://dev.mysql.com/doc/refman/8.0/en/create-index.html#create-index-unique) to ensure the uniqueness of specific entity fields within your database. 
-As an example, consider the `Code` field of the `CategoryEntity`. 
-FluxaORM leverages [Redis sets](https://redis.io/docs/data-types/sets/) to store information about the utilized values of these unique keys and validate the entity when it is flushed, 
-as demonstrated in the following example:
-
-```go
-categoryCars := fluxaorm.NewEntity[CategoryEntity](orm)
-categoryCars.Code = "cars"
-err := c.FlushWithCheck() // nil, row is inserted to MySQL table
-
-anotherCategory:= fluxaorm.NewEntity[CategoryEntity](orm)
-categoryCars.Code = "cars"
-// returns fluxaorm.DuplicatedKeyBindError{Index: "code", ID: 84984747727443, Columns: ["Code"]}
-err = c.FlushWithCheck() 
-```
-
-Every time an entity is added, updated, or deleted, the values in the Redis set that stores information about the unique key are updated. 
-However, there is one issue with this approach - in certain cases, you may need to clear the Redis data. In such cases, FluxaORM is unable to validate unique values when `Flush()` is executed. 
-Instead of receiving a `orm.DuplicatedKeyBindError`, the `Flush()` function returns a `mysql.MySQLError` error with code 1062. This indicates that you need to refill the Redis set with the correct data. 
-FluxaORM provides a special function for this purpose:
-
-```go
-orm.LoadUniqueKeys(orm, false)
-```
-It is considered a good practice to run the above function every time your application starts. 
-When Redis is not flushed, this function executes in a matter of milliseconds. However, if Redis data has been flushed, 
-it will run until all the data is loaded from MySQL into the Redis set. Be sure to run this function every time Redis data is flushed.
-
-You might wonder why FluxaORM chose to use Redis for checking the uniqueness of unique keys instead of relying solely on 
-MySQL Unique Key constraints. This unique approach offers two valuable features, 
-which are explained in the following sections: the ability to [retrieve records from cache by their unique keys](/guide/crud.html#getting-entities-by-unique-key)
-and support for [asynchronous flushing](/guide/async_flush.html).
-
-You can also provide optional arguments to force unique index cache recalculation only for specific entities.
-It's very useful when you manually run SQL queries in MySQL. Then you can run:
-
-```go
-schema := fluxaorm.GetEntitySchema[UserEntity](orm)
-orm.LoadUniqueKeys(orm, true, schema)
-```
-
 ## Getting Entity by ID
 
 There are several ways to get entities from the database when you know the primary key. 
