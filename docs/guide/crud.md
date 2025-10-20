@@ -159,7 +159,7 @@ category, found := fluxaorm.GetByUniqueIndex[CategoryEntity](orm, "code", "cars"
 You can easily get entities by one-one reference name:
 
 ```go
-iterator := fluxaorm.GetByReference[ProductEntity](orm, "Category", 9934828848843)
+iterator := fluxaorm.GetByReference[ProductEntity](orm, nil, "Category", 9934828848843)
 for iterator.Next() {
     product := iterator.Entity()
 }
@@ -179,7 +179,7 @@ type ProductEntity struct {
 }
 
 // data is loaded from local cache only without any MySQL query to DB
-iterator := fluxaorm.GetByReference[ProductEntity](orm, "Category", 9934828848843)
+iterator := fluxaorm.GetByReference[ProductEntity](orm, pager.NewPager(1, 200), "Category", 9934828848843)
 ```
 
 ## Getting Entities by Index
@@ -194,7 +194,7 @@ type ProductEntity struct {
 	...
 }
 
-iterator := fluxaorm.GetByIndex[ProductEntity](orm, "ActiveInCategory", 9934828848843, true)
+iterator := fluxaorm.GetByIndex[ProductEntity](orm, nil, "ActiveInCategory", 9934828848843, true)
 ```
 
 You can also add `cached` tag to keep rows in cache:
