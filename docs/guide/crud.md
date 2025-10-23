@@ -231,6 +231,49 @@ type ProductEntity struct {
 }
 ```
 
+## Loading References
+
+In many scenarios you may need to access the referenced entities from returned entities. 
+Of course you can use `LoadReference()` method:
+
+```go
+iterator := fluxaorm.GetByIDs[ProductEntity](orm, 324343544424, 34545654434, 7434354434)
+for iterator.Next() {
+    product := iterator.Entity()
+    product.Category.GetEntity(orm) // this line executes query to Redis/MySQL
+}
+```
+
+In example above every iteration of the loop loads the referenced entity from the cache. 
+If the entity is not in the cache, it is loaded from the database. 
+If the entity is not in the database, it is created and inserted into the database. 
+If the entity is not in the database and the referenced entity is not in the cache, it is created and inserted into the cache.
+
+It can cause performance issues if you are loading a large number of entities. 
+In this case, you can use `LoadReferences()` method to preload all referenced entities:
+
+```go
+iterator := fluxaorm.GetByIDs[ProductEntity](orm, 324343544424, 34545654434, 7434354434)
+iterator.LoadReferences("Category") // this line executes one query to Redis/MySQL
+} 
+for iterator.Next() {
+    product := iterator.Entity()
+    product.Category.GetEntity(orm) // this line loads data from context cache
+}
+```
+
+Above example loads all referenced entities from the cache at once.
+
+Another example:
+
+```go
+// loads two references in each entity
+iterator.LoadReferences("Category", "Brand")
+
+// loads Brand reference and in BrandEntity loads Color and Manufacturer references
+iterator.LoadReferences("Brand/Color", "Brand/Manufacturer") 
+```
+
 ## Updating Entities
 
 When updating an entity, the process involves retrieving it from the database and then modifying its fields. Two methods can be employed to achieve this:
