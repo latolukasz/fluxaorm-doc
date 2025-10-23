@@ -245,11 +245,9 @@ for iterator.Next() {
 ```
 
 In example above every iteration of the loop loads the referenced entity from the cache. 
-If the entity is not in the cache, it is loaded from the database. 
-If the entity is not in the database, it is created and inserted into the database. 
-If the entity is not in the database and the referenced entity is not in the cache, it is created and inserted into the cache.
+If the entity is not in the cache, it is loaded from the database and cached.
 
-It can cause performance issues if you are loading a large number of entities. 
+It can cause performance issues if you are loading a large number of requests to the database/cache. 
 In this case, you can use `LoadReferences()` method to preload all referenced entities:
 
 ```go
