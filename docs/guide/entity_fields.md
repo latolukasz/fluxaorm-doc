@@ -91,6 +91,28 @@ In MySQL, the IsActive field will be defined as NOT NULL, while the HasLicense f
 | bool      | tinyint(1)  |
 
 
+## Structs
+
+You can also define structs as entity fields. This can be useful if you want to store a complex data structure in a single JSON column in MySQL.
+
+```go{3-4}
+type Car struct {
+    Name      string
+    Colors    []string
+}
+
+type PersonEntity struct {
+    ID           uint64
+    Car          fluxaorm.Struct[Car]
+
+}
+
+person := fluxaorm.NewEntityPool[PersonEntity](orm)
+person.Cat.Get() // return nul
+person.Car.Set(&Car{Name "Tesla", Colors: []string{"red", "blue"}})
+person.Car.Get() // returns &Car{Name "Tesla", Colors: []string{"red", "blue"}}
+```
+
 ## Strings
 
 To store text in Go, you can use the string type. Here is an example of how to use strings in a struct definition:
