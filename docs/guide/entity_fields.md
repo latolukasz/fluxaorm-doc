@@ -263,6 +263,46 @@ type ProductEntity struct {
 
 In the example above, FluxaORM will create a `Category bigint NOT NULL` column in the ProductEntity table. If the field is allowed to store NULL values, simply omit the orm:"required" tag.
 
+## One-to-Many References
+
+In FluxaORM, you can define a one-to-amny reference between two entities by declaring a field with the type of the `References[EntityType]`:
+
+```go{9}
+type DogEntity struct {
+    ID     uint64
+    Name   string  `orm:"required"`
+}
+
+type DogOwnerEntity struct {
+    ID       uint64
+    Name     string  `orm:"required"`
+    Dogs fluxaorm.References[DogEntity]
+}
+```
+
+In the example above, FluxaORM will create a `Dogs JSON` column in the DogEntity table which will store a JSON array of DogEntity IDs.
+
+```go
+owner := fluxaorm.NewEntityPool[DogOwnerEntity](orm)
+
+owner.Dogs.Len() // returns 0
+owner.Dogs.GetIDs() // returns []uint64{}
+owner.Dogs.GetEntity(orm, 0) // returns nil
+owner.Dogs.GetEntities(orm) // returns iterator with zero elements
+
+owner.Dogs.SetIDs([]uint64{1, 2, 3})
+
+owner.Dogs.GetIDs() // returns []uint64{1, 2, 3}
+owner.Dogs.GetEntity(orm, 0) // returns DogEntity with ID 1
+owner.Dogs.GetEntity(orm, 1) // returns DogEntity with ID 2
+owner.Dogs.GetEntity(orm, 2) // returns DogEntity with ID 3
+list := owner.Dogs.GetEntities(orm)
+for list.next() {
+    dog := list.GetEntity(orm)
+}
+```
+
+
 ## Subfields
 
 It is often useful to divide entity fields into logical groups, as this can help improve code readability and facilitate reuse of field definitions in other entities. In FluxaORM, you can do this by creating a struct for the subfields and using it as the type of a field. For example:
