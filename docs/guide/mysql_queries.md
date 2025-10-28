@@ -6,7 +6,7 @@ In this section, you will learn how to run SQL queries in MySQL. First, we need 
 registry := fluxaorm.NewRegistry()
 registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", fluxaorm.DefaultPoolCode, nil)
 registry.RegisterMySQL("user:password@tcp(localhost:3306)/users", "users", nil)
-engine, err := registry.Validate()
+engine, err := registry.Validate(0)
 if err != nil {
     panic(err)
 }

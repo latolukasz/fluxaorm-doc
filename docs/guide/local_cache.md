@@ -10,7 +10,7 @@ registry := fluxaorm.NewRegistry()
 registry.RegisterLocalCache(orm.DefaultPoolCode, 0)
 registry.RegisterLocalCache("test", 100)
 registry.RegisterLocalCache(100, "test")
-engine, err := registry.Validate()
+engine, err := registry.Validate(0)
 if err != nil {
     panic(err)
 }

@@ -6,7 +6,7 @@ FluxaORM provides its own Redis client that can be used to execute all [Redis co
 registry := fluxaorm.NewRegistry()
 registry.RegisterRedis("localhost:6379", 0, fluxaorm.DefaultPoolCode, nil)
 registry.RegisterRedis("localhost:6379", 1, "test", nil)
-engine, err := registry.Validate()
+engine, err := registry.Validate(0)
 if err != nil {
     panic(err)
 }

@@ -25,7 +25,7 @@ func main() {
     registry.RegisterRedis("localhost:6379", 0, fluxaorm.DefaultPoolCode, nil)
     registry.RegisterEntity(UserEntity{}) 
     
-    engine, err := registry.Validate()
+    engine, err := registry.Validate(0)
     if err != nil {
         panic(err)
     }
@@ -64,7 +64,7 @@ func main() {
     registry.RegisterRedis("localhost:6379", 0, fluxaorm.DefaultPoolCode, nil)
     registry.RegisterLocalCache(orm.DefaultPoolCode, 0)
     registry.RegisterEntity(CarEntity{}) 
-    engine, err := registry.Validate()
+    engine, err := registry.Validate(0)
     if err != nil {
       panic(err)
     }

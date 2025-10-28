@@ -21,7 +21,7 @@ import (
 func main() {
     registry := fluxaorm.NewRegistry()
     // ... register data pools and entities
-    engine, err := registry.Validate()
+    engine, err := registry.Validate(0)
     if err != nil {
         panic(err)
     }
