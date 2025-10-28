@@ -18,7 +18,7 @@ func main() {
     registry := fluxaorm.NewRegistry()
     registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", fluxaorm.DefaultPoolCode, nil)
     registry.RegisterEntity(CategoryEntity{})
-    engine, err := registry.Validate(0)
+    engine, err := registry.Validate()
     if err != nil {
         panic(err)
     }
