@@ -6,37 +6,37 @@ Fortunately, there is an option to use the Redis Search engine, which provides m
 
 ## Defining Redis Search Fields
 
-By default, an entity is not indexed in the Redis Search index. You must add a special tag redis_search to a specific entity field to instruct FluxaORM to create a Redis hash index for that entity, keeping data from the tagged fields.
-You can add this tag to more than one field. An entity is considered searchable via the Redis Search engine when at least one of its fields has the redis_search tag.
+By default, an entity is not indexed in the Redis Search index. You must add a special tag searchable to a specific entity field to instruct FluxaORM to create a Redis hash index for that entity, keeping data from the tagged fields.
+You can add this tag to more than one field. An entity is considered searchable via the Redis Search engine when at least one of its fields has the searchable tag.
 
 Example — entity with two fields indexed in Redis Search:
 ```go
 type PersonEntity struct {
 	ID            uint64     `orm:"localCache;redisCache"`
-	Age           uint8      `orm:"redis_search"`
-	Name          string     `orm:"redis_search"`
+	Age           uint8      `orm:"searchable"`
+	Name          string     `orm:"searchable"`
 }
 ```
 
 ## Sortable Fields
 
-By default, fields are not sortable. You can make a field sortable by adding the rs_sortable tag:
+By default, fields are not sortable. You can make a field sortable by adding the sortable tag:
 
 ```go
 type PersonEntity struct {
-	ID            uint64     `orm:"localCache;redisCache;redis_search_pool=my_pool"`
-	Age           uint8      `orm:"redis_search;rs_sortable"`
+	ID            uint64     `orm:"localCache;redisCache;redisSearch=my_pool"`
+	Age           uint8      `orm:"searchable;sortable"`
 }
 ```
 
 ## Defining a Redis Pool for the Search Index
 
-You must define a different Redis pool using the redis_search_pool tag on the ID field:
+You must define a different Redis pool using the redisSearch tag on the ID field:
 
 ```go
 type PersonEntity struct {
-	ID            uint64     `orm:"localCache;redisCache;redis_search_pool=my_pool"`
-	Age           uint8      `orm:"redis_search;rs_sortable"`
+	ID            uint64     `orm:"localCache;redisCache;redisSearch=my_pool"`
+	Age           uint8      `orm:"searchable;sortable"`
 }
 ```
 
@@ -59,8 +59,8 @@ You can force a field to be stored in Redis as a TAG by adding the rs_tag tag:
 
 ```go
 type PersonEntity struct {
-	ID            uint64     `orm:"localCache;redisCache;redis_search_pool=my_pool"`
-	Age           uint8      `orm:"redis_search;rs_tag"`
+	ID            uint64     `orm:"localCache;redisCache;redisSearch=my_pool"`
+	Age           uint8      `orm:"searchable;rs_tag"`
 }
 ```
 
@@ -70,8 +70,8 @@ You can define the NOSTEM index option with the rs_no-stem tag:
 
 ```go
 type PersonEntity struct {
-	ID            uint64     `orm:"localCache;redisCache;redis_search_pool=my_pool"`
-	Name          string      `orm:"redis_search;rs_no-steam"`
+	ID            uint64     `orm:"localCache;redisCache;redisSearch=my_pool"`
+	Name          string      `orm:"searchable;rs_no-steam"`
 }
 ```
 
