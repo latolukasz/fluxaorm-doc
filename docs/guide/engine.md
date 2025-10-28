@@ -4,7 +4,10 @@ In previous sections, you learned how to create a `Registry` object and register
 
 ## Validating the Registry
 
-To create an Engine, you first need to create a `Registry` object and register the necessary database connections and entities with it. Then, you can call the `registry.Validate()` method to create a `Engine` object. Here is an example:
+To create an Engine, you first need to create a `Registry` object and register the necessary database connections and entities with it. Then, you can call the `registry.Validate()` method to create a `Engine` object.
+`registry.Validate()` requires a unique server ID (as a number between 0 and 255) that is explained later
+
+Here is an example:
 
 ```go{16}
 package main
@@ -17,7 +20,7 @@ type UserEntity struct {
 }
 
 func main() {
-    registry := fluxaorm.NewRegistry()
+    registry := fluxaorm.NewRegistry(0)
     registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", fluxaorm.DefaultPoolCode, nil)
     registry.RegisterRedis("localhost:6379", 0, fluxaorm.DefaultPoolCode, nil)
     registry.RegisterEntity(UserEntity{}) 
@@ -29,12 +32,17 @@ func main() {
 }  
 ```
 
+
 ::: tip
 It is recommended to create the `Registry` object and call `registry.Validate()` only once in your application, when it starts. For example, if you are running an HTTP server, you should run the above code before the `http.ListenAndServe(":8080", nil)` line.
 :::
 
 The `Engine` object should be shared across all goroutines in your application. It serves as a read-only, validated source of FluxaORM settings, including connection credentials and entity structures. You cannot use it to register more entities or connections - this should be done using a `Registry` object. In other words, the `Registry` is where you configure FluxaORM, while the `Engine` is a read-only source of the resulting configuration.
 
+## Server ID
+
+Each copy od golang applications that uses the same entities (tables in MySQL) should have a unique server ID. The server ID is a number between 0 and 255. The server ID is used to generate unique IDs for each entity that use `uint64` as a primary key.
+In case none of your entities use `uint64` as a primary key, you can use the default value of `0`.
 
 ## Engine Registry
 
