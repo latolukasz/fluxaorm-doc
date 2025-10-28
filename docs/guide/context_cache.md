@@ -3,25 +3,25 @@
 In this section, you will learn how to use context cache to speed up your application..
 
 Without context cache every time you retrieve entities queries to MySQL or/and Redis are executed.
-By default `fluxaorm.Context` uses context (locac) cache to store retrieved entities.
-So next time you retrieve the same entity from the database, it will be retrieved from the local cache.
+By default `fluxaorm.Context` does not use context (locac) cache to store retrieved entities.
+So next time you retrieve the same entity from the database, it will be retrieved again from DB/Redis.
 For example:
 
 ```go
 orm := engine.NewContext(context.Background())
 user, _ := orm.GetById[UserEntity](orm, 1) // executes request do DB/Redis
 ...
-user, _ = orm.GetById[UserEntity](orm, 1) // retrieves from context cache
+user, _ = orm.GetById[UserEntity](orm, 1) // executes request do DB/Redis
 
 ```
 
-## Disabling Context Cache
+## Enabling Context Cache
 
-You can disable context cache by running `DisableCache()`:
+You can enable context cache by running `EnableCOntextCache()`:
 
 ```go
 orm := engine.NewContext(context.Background())
-orm.DisableCache() // from now on, every request will be executed to DB/Redis
+orm.EnableCOntextCache() // from now on, every entity will be stored and retrieved from context cache
 ```
 
 ## Clearing Context Cache
@@ -30,6 +30,7 @@ You can clear context cache by running `ClearCache()`:
 
 ```go
 orm := engine.NewContext(context.Background())
+orm.EnableCOntextCache()
 user, _ := orm.GetById[UserEntity](orm, 1) // executes request do DB/Redis
 orm.ClearCache()
 user, _ := orm.GetById[UserEntity](orm, 1) // executes request do DB/Redis
