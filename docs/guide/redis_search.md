@@ -24,17 +24,14 @@ By default, fields are not sortable. You can make a field sortable by adding the
 
 ```go
 type PersonEntity struct {
-	ID            uint64     `orm:"localCache;redisCache"`
+	ID            uint64     `orm:"localCache;redisCache;redis_search_pool=my_pool"`
 	Age           uint8      `orm:"redis_search;rs_sortable"`
 }
 ```
 
 ## Defining a Redis Pool for the Search Index
 
-If not specified, all entity Redis Search indexes are created in the fluxaorm.DefaultPoolCode Redis pool.
-This pool must be configured to use Redis DB number 0. Otherwise, FluxaORM will panic when validating the Registry.
-
-You can define a different Redis pool using the redis_search_pool tag on the ID field:
+You must define a different Redis pool using the redis_search_pool tag on the ID field:
 
 ```go
 type PersonEntity struct {
