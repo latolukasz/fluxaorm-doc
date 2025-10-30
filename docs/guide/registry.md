@@ -17,6 +17,31 @@ func main() {
 } 
 ```
 
+## Init By Config
+
+```go
+registry := fluxaorm.NewRegistry()
+config := &fluxaorm.Config{
+    MySQlPools: []fluxaorm.ConfigMysql{
+        {URI: "root:root@tcp(localhost:3377)/test", Code: "default"},
+    },
+    RedisPools: []fluxaorm.ConfigRedis{
+        {URI: "localhost:6385", Code: "default", Database: 0, Streams: []fluxaorm.ConfigStream{
+            {Name: "test-stream", Group: "test-group"},
+        }},
+        {URI: "localhost:6385", Code: "test", Database: 1},
+    },
+    LocalCachePools: []fluxaorm.ConfigLocalCache{
+        {Code: "test", Limit: 10000},
+        {Code: "default", Limit: 200},
+    },
+}
+
+err := registry.InitByConfig(config)
+```
+
+## Init By Yaml file
+
 Alternatively, you can configure the `orm.Registry` object using data from a YAML file, as shown in the following example:
 
 ```go{20}
