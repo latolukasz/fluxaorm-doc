@@ -118,12 +118,12 @@ The RedisSearch() function searches for entities using a Redis Search query cond
 
 Example:
 ```go
-options = &fluxaorm.RedisSearchOptions{}
-options.Pager = fluxaorm.NewPager(1, 100)
-options.AddSortBy("Age", false) // sort by Age ASC
-options.AddFilter("Owner", 1, 1) // Owner = 1
-options.AddSortBy("Age", 18, nil) // Age >= 18
-iterator, total := fluxaorm.RedisSearch[UserEntity](orm, "@Status:{active}", options)
+query = &fluxaorm.RedisSearchQuery{}
+query.Query = "@Status:{active}"
+query.AddSortBy("Age", false) // sort by Age ASC
+query.AddFilter("Owner", 1, 1) // Owner = 1
+query.AddSortBy("Age", 18, nil) // Age >= 18
+iterator, total := fluxaorm.RedisSearch[UserEntity](orm, query, fluxaorm.NewPager(1, 100)
 for iterator.Next() {
     user := iterator.Entity()
 }
@@ -133,9 +133,8 @@ The Pager object is optional — if nil, FluxaORM searches all rows.
 
 If you only need entity primary keys, use RedisSearchIDs():
 ```go
-options = &fluxaorm.RedisSearchOptions{}
-options.Pager = fluxaorm.NewPager(1, 100)
-ids, total := fluxaorm.RedisSearchIDs[UserEntity](orm, "*", options)
+query = &fluxaorm.RedisSearchQuery{}
+ids, total := fluxaorm.RedisSearchIDs[UserEntity](orm, nil, nil) // all rows
 ```
 
 ## Searching for a Single Entity
