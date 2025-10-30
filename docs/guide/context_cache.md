@@ -17,11 +17,11 @@ user, _ = orm.GetById[UserEntity](orm, 1) // executes request do DB/Redis
 
 ## Enabling Context Cache
 
-You can enable context cache by running `EnableCOntextCache()`:
+You can enable context cache by running `EnableContextCache()`:
 
 ```go
 orm := engine.NewContext(context.Background())
-orm.EnableCOntextCache() // from now on, every entity will be stored and retrieved from context cache
+orm.EnableContextCache() // from now on, every entity will be stored and retrieved from context cache
 ```
 
 ## Clearing Context Cache
@@ -30,7 +30,7 @@ You can clear context cache by running `ClearCache()`:
 
 ```go
 orm := engine.NewContext(context.Background())
-orm.EnableCOntextCache()
+orm.EnableContextCache()
 user, _ := orm.GetById[UserEntity](orm, 1) // executes request do DB/Redis
 orm.ClearCache()
 user, _ := orm.GetById[UserEntity](orm, 1) // executes request do DB/Redis
