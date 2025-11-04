@@ -68,9 +68,12 @@ user.Age = 39
 c.Flush()
 ```
 
-All entity changes automatically generates [async queries](/guide/async_flush.html) to log table so
-you must [consume events](/guide/async_flush.html#consuming-async-queries) with `ConsumeAsyncFlushEvents()` function.
+To flush changes to database you need to execute in tour code:
 
+```go
+consumer := fluxaorm.NewLogTablesConsumer(ctx)
+finished := consumer.Digest() // blocks and waits for new SQL queries to be processed
+```
 
 Let's see what we can find in `__LogEntity_default_UserEntity` table:
 

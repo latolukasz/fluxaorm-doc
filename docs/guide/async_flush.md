@@ -42,11 +42,11 @@ In the example above, the `FlushAsync()` method pushes the `INSERT INTO ...` SQL
 
 ## Consuming async queries
 
-When you use `FlushAsync()` to commit your changes, it's essential to execute the `BackgroundConsumer.Digest()` function in your application, 
+When you use `FlushAsync()` to commit your changes, it's essential to execute the `LazyFlashConsumer.Digest()` function in your application, 
 as demonstrated below:
 
 ```go
-consumer := fluxaorm.NewBackgroundConsumer(ctx)
+consumer := fluxaorm.NewLazyFlashConsumer(ctx)
 finished := consumer.Digest() // blocks and waits for new SQL queries to be processed
 ```
 
