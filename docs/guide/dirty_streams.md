@@ -69,3 +69,14 @@ consumer := fluxaorm.NewDirtyStreamConsumer(orm, "AllChanges", func(event *fluxa
     event.Ack() // acknowledge event immediately in stream
 })
 ```
+
+## Dirty stream statistics 
+
+to get statistics of dirty stream use `GetStreamStatistics()` method of `fluxaorm.EventBroker`:
+
+```go
+stats := ctx.GetEventBroker().GetStreamStatistics("AllChanges")
+stats.Len // number of events in stream
+stats.OldestEventSeconds // time in seconds since oldest event
+...
+```
