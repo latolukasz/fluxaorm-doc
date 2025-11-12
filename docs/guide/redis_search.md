@@ -118,7 +118,7 @@ The RedisSearch() function searches for entities using a Redis Search query cond
 
 Example:
 ```go
-query = &fluxaorm.RedisSearchQuery{}
+query = fluxaorm.NewRedisSearchQuery()
 query.Query = "@Status:{active}"
 query.AddSortBy("Age", false) // sort by Age ASC
 query.AddFilter("Owner", 1, 1) // Owner = 1
@@ -133,7 +133,7 @@ The Pager object is optional — if nil, FluxaORM searches all rows.
 
 If you only need entity primary keys, use RedisSearchIDs():
 ```go
-query = &fluxaorm.RedisSearchQuery{}
+query = fluxaorm.NewRedisSearchQuery()
 ids, total := fluxaorm.RedisSearchIDs[UserEntity](orm, nil, nil) // all rows
 ```
 
