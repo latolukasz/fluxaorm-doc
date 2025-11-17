@@ -69,6 +69,7 @@ export default defineUserConfig({
             'dirty_streams',
             'redis_operations',
             'distributed_lock',
+            'virtual_entities',
             'queries_log',
             'plugins',
             'log_tables'
