@@ -155,6 +155,8 @@ By default the Redis cache TTL for an Entity is set to 0, which means data is ca
 
 ```go{2}
 type UserEntity struct {
-	ID uint64 `orm:"ttl=60"` // Cache for 30 seconds
+	ID uint64 `orm:"ttl=30"` // Cache for 30 seconds
 }
 ```
+
+TTL expiration time is reset every time the data is updated. This ensures that stale data is not served to clients, improving the accuracy and freshness of cached data.
