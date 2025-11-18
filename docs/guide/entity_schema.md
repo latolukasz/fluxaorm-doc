@@ -98,3 +98,16 @@ type CarEntity struct {
 entitySchema := fluxaorm.GetEntitySchema[CarEntity](orm)
 entitySchema.DisableCache(true, true) // disables both redis and local cache
 ```
+
+## Clearing entity cache
+
+You can clear redis and local cache for specific Entity using `ClearCache()` method which returns number of cleared redis keys:
+
+```go
+entitySchema := fluxaorm.GetEntitySchema[CarEntity](orm)
+removedItemsInRedis := entitySchema.ClearCache(orm)
+```
+
+::: warning
+If entity uses millions of records in Redis, clearing cache can take a some time because Redis will scan all keys.
+:::
