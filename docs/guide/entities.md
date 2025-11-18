@@ -148,3 +148,13 @@ type UserEntity struct {
 ```
 
 This allows you to specify a table name that may be more descriptive or follow a naming convention that you have established for your database tables.
+
+### Setting Entity Redis Cache TTL
+
+By default the Redis cache TTL for an Entity is set to 0, which means data is cached forever. You can change this by using the ttl tag setting:
+
+```go{2}
+type UserEntity struct {
+	ID uint64 `orm:"ttl=60"` // Cache for 30 seconds
+}
+```
