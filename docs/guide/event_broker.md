@@ -1,11 +1,11 @@
 # Event Broker
 
-FluxaORM udostępnia specjalny obiekt `fluxabee.EventBroker`, który ułatwia wysyłanie danych do Redis Streams oraz
-ich odczytywanie.
+FluxaORM provides a special object `fluxabee.EventBroker` that facilitates sending data to Redis Streams and
+reading from them.
 
 ## Defining redis stream
 
-Pierwszy krok to zdefiniowanie listy Redis Streams:
+The first step is to define a list of Redis Streams:
 
 Plik YAML:
 
@@ -42,7 +42,7 @@ someData := SomeStruct{
 }
 broker.Publish("test-stream", "some-text")
 
-// flusing all events to Redis
+// flushing all events to Redis
 broker.Flush()
 ```
 
