@@ -71,8 +71,8 @@ c.Flush()
 To flush changes to database you need to execute in tour code:
 
 ```go
-consumer := fluxaorm.NewLogTablesConsumer(ctx)
-finished := consumer.Digest() // blocks and waits for new SQL queries to be processed
+consumer := fluxaorm.NewLogTablesConsumerSingle(ctx)
+finished := consumer.Consume(100, time.Second * 5) // blocks and waits max 5 seconds for max 100 new SQL queries to be processed
 ```
 
 Let's see what we can find in `__LogEntity_default_UserEntity` table:

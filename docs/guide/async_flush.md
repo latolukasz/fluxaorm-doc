@@ -6,7 +6,7 @@ However, SQL queries can take a significant amount of time, typically more than 
 often become a performance bottleneck.
 
 To address this issue, FluxaORM provides a powerful feature that allows you to run all SQL queries asynchronously. 
-All you need to do is use the `FlushAsync()` method instead of `Flush() `and run the `BackgroundConsumer.Digest()` 
+All you need to do is use the `FlushAsync()` method instead of `Flush() `and run the `LazyFlashConsumer.Consume()` 
 function in a separate thread or application.
 
 See the example below:
@@ -42,18 +42,18 @@ In the example above, the `FlushAsync()` method pushes the `INSERT INTO ...` SQL
 
 ## Consuming async queries
 
-When you use `FlushAsync()` to commit your changes, it's essential to execute the `LazyFlashConsumer.Digest()` function in your application, 
+When you use `FlushAsync()` to commit your changes, it's essential to execute the `LazyFlashConsumer.Consume()` function in your application, 
 as demonstrated below:
 
 ```go
 consumer := fluxaorm.NewLazyFlashConsumer(ctx)
-finished := consumer.Digest() // blocks and waits for new SQL queries to be processed
+consumer.Consume(time.Second) // blocks and waits 1 second max for new SQL queries to be processed
 ```
 
 ## Understanding Cache Updates
 
 To ensure smooth operation of your application and prevent unexpected issues, it is crucial to have a solid grasp of how asynchronous cache flushing works in FluxaORM. When you execute the `FlushAsync()` function, FluxaORM updates entity data in the cache. This data is 
-added to both Redis (when the entity uses the `redisCache` tag) and the local cache (when the `localCache` tag is used). SQL queries are executed at a later stage, typically a few milliseconds after the `FlushLazy()` call, thanks to the `consumer.Digest()` function. This is the reason why not all FluxaORM functions that retrieve entities from the database return updated data immediately after the execution of `FlushLazy()`.
+added to both Redis (when the entity uses the `redisCache` tag) and the local cache (when the `localCache` tag is used). SQL queries are executed at a later stage, typically a few milliseconds after the `FlushLazy()` call, thanks to the `consumer.Consume()` function. This is the reason why not all FluxaORM functions that retrieve entities from the database return updated data immediately after the execution of `FlushLazy()`.
 
 Let's take a closer look at an example to help you understand how this process works:
 
@@ -74,7 +74,7 @@ categoryCars.Name = "Tom"
 c.FlushAsync()
 
 // The following code is executed in another thread just after the previous code
-// but before consumer.Digest() consumes events:
+// but before consumer.Consume() consumes events:
 
 // Returns valid data because it's saved in Redis
 category, found := fluxaorm.GetByID[CategoryEntity](orm, 1)
@@ -99,13 +99,13 @@ Below, you'll find a list of functions that return updated entity data when `Flu
 * [GetByReference](/guide/crud.html#getting-entities-by-reference) when the reference field has the `cached` tag
 * [GetAll](/guide/crud.html#getting-all-entities) when the ID field has the `cached` tag
 
-Please note that all [search functions](/guide/search.html) do not return updated entity data until `consumer.Digest()` processes the SQL queries.
+Please note that all [search functions](/guide/search.html) do not return updated entity data until `consumer.Consume()` processes the SQL queries.
 
 ## Handling Errors in Async Flush Consumption
 
-The `consumer.Digest()` function plays a crucial role in processing SQL queries by reading them from a Redis set and executing them one by one. When an SQL query generates an error, FluxaORM undertakes the task of determining whether the error is temporary or not.
+The `consumer.Consume()` function plays a crucial role in processing SQL queries by reading them from a Redis set and executing them one by one. When an SQL query generates an error, FluxaORM undertakes the task of determining whether the error is temporary or not.
 
-In cases of temporary errors, the `consumer.Digest()` function will panic, and it is the responsibility of the developer to report this error, address the underlying issue, and then re-run `consumer.Digest()`.
+In cases of temporary errors, the `consumer.Consume()` function will panic, and it is the responsibility of the developer to report this error, address the underlying issue, and then re-run `consumer.Consume()`.
 
 Temporary errors are typically characterized by issues such as:
 

@@ -29,17 +29,20 @@ Above example will create five Redis Streams in entity redis cache pool (or flux
 
 ## Consuming dirty stream events
 
-To consume events from dirty streams simply create a consumer using `fluxaorm.NewDirtyStreamConsumer()` function
+To consume events from dirty streams simply create a consumer using `fluxaorm.NewDirtyStreamConsumerSingle()` or `fluxaorm.NewDirtyStreamConsumerMany()` function
 and call `Digest` method.
 
 ```go
-consumer := fluxaorm.NewDirtyStreamConsumer(orm, "AllChanges", func(event *fluxaorm.DirtyStreamEvent) {
-    event.EntityName // for example "mypkg.UserEntity"
-    event.ID // ID of added, edited or deleted entity
-    event.Operation // fluxaorm.Insert or fluxaorm.Update or fluxaorm.Delete
-    event.Bind // map of attributes that were changed
+consumer := fluxaorm.NewDirtyStreamConsumerSingle(orm, "AllChanges", func(events []*fluxaorm.DirtyStreamEvent) {
+    for _, event := range events {
+        event.EntityName // for example "mypkg.UserEntity"
+        event.ID // ID of added, edited or deleted entity
+        event.Operation // fluxaorm.Insert or fluxaorm.Update or fluxaorm.Delete
+        event.Bind // map of attributes that were changed
+    }
 })
-consumer.Digest(1, 100) // consume 100 events at once as consumer with name "consumer_1"
+defer consumer.Cleanup()
+consumer.Consume(100, time.Second * 5) // wait max 5 secondas for new events and consume max 100 event as consumer with name "consumer_single"
 ```
 
 `event.Bind` is a map of attributes that were changed. When entity is added Bind holds all attributes of the entity.
@@ -53,11 +56,19 @@ to `fluxaorm.Delete` and `event.Bind` holds only changed field `{"FakeDelete": 1
 In case one consumer is not enough to consume all events you can create more consumers:
 
 ```go
+consumer1 := fluxaorm.NewDirtyStreamConsumerMany(orm, "AllChanges", func(events []*fluxaorm.DirtyStreamEvent) {
+ // ....
+})
+defer consumer1.Cleanup()
+consumer2 := fluxaorm.NewDirtyStreamConsumerMany(orm, "AllChanges", func(events []*fluxaorm.DirtyStreamEvent) {
+ // ....
+})
+defer consumer2.Cleanup()
 go func() {
-    consumer.Digest(1, 100) // consume 100 events at once as consumer with name "consumer_1"
+   consumer1.Consume(100, time.Second * 5) 
 }()
 go func() {
-    consumer.Digest(2, 100) // consume 100 events at once as consumer with name "consumer_2"
+   consumer2.Consume(100, time.Second * 5) 
 }()
 ```
 
@@ -65,8 +76,10 @@ By default all events passed to above function are automatically acknowledged wh
 If you want to acknowledge event sooner you can run `event.Ack()` in your code:
 
 ```go
-consumer := fluxaorm.NewDirtyStreamConsumer(orm, "AllChanges", func(event *fluxaorm.DirtyStreamEvent) {
-    event.Ack() // acknowledge event immediately in stream
+consumer := fluxaorm.NewDirtyStreamConsumerSingle(orm, "AllChanges", func(events []*fluxaorm.DirtyStreamEvent) {
+    for _, event := range events {
+        event.Ack() // acknowledge event immediately in stream
+    }
 })
 ```
 
@@ -80,4 +93,13 @@ stats := ctx.GetEventBroker().GetStreamStatistics("dirty_AllChanges")
 stats.Len // number of events in stream
 stats.OldestEventSeconds // time in seconds since oldest event
 ...
+```
 
+## Auto-claim old events
+
+```go
+consumer := fluxaorm.NewDirtyStreamConsumerMany(orm, "AllChanges", func(events []*fluxaorm.DirtyStreamEvent) {
+ // ....
+})
+consumer.AutoClaim(1000, time.Second * 5) // auto-claim max 1000 penfing events older than 5 seconds
+```
