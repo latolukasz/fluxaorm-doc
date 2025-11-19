@@ -70,6 +70,7 @@ export default defineUserConfig({
             'redis_operations',
             'distributed_lock',
             'virtual_entities',
+            'event_broker',
             'queries_log',
             'plugins',
             'log_tables'
