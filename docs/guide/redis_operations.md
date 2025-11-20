@@ -37,8 +37,11 @@ Using the FluxaORM Redis data pool, you can execute all Redis commands except [S
 ```go
 redisPool := engine.Redis(orm.DefaultPoolCode)
 redisPool.Set(orm, "my-key", "some-value", 30) // cache for 30 seconds
-value, has := redisPool.Get(orm, "my-key")
-pushed := redisPool.LPUsh(orm, "another-key", "value-1", "value-2")
+value, has, err := redisPool.Get(orm, "my-key")
+if err != nil {
+    panic(err)
+}
+pushed, err := redisPool.LPUsh(orm, "another-key", "value-1", "value-2")
 
 testPool := engine.Redis("test")
 testPool.FlushDB(orm) // flush redis DB 3
