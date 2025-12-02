@@ -34,29 +34,33 @@ config := &fluxaorm.Config{
 broker := ctx.GetEventBroker()
 
 // Publishing simple text
-broker.Publish("test-stream", "some-text")
+err = broker.Publish("test-stream", "some-text")
 
 // Publishing struct that is serialized/unserialized automatically
 someData := SomeStruct{
     SomeField: "some-value",
 }
-broker.Publish("test-stream", "some-text")
+err = broker.Publish("test-stream", "some-text")
 
 // flushing all events to Redis
-broker.Flush()
+err = broker.Flush()
 ```
 
 ## Reading events from Redis Stream by single consumer
 
 ```go
 broker := ctx.GetEventBroker()
-consumer := broker.ConsumerSingle(ctx, "test-stream")
+consumer, err := broker.ConsumerSingle(ctx, "test-stream")
 defer consumer.Cleanup()
-consumer.Consume(5, time.Second * 10, func(events []Event) {
+err = consumer.Consume(5, time.Second * 10, func(events []Event) {
     for _, event := range events {
-        event.ACK()
+        err = event.ACK()
+        if err != nil {
+            return err
+        }
     }
-})
+    return nil
+} error)
 ```
 
 In above example, we consume max 5 messages from Redis Stream `test-stream`.
@@ -71,23 +75,31 @@ will read messages and all events will be processed from oldest to newest.
 broker := ctx.GetEventBroker()
 
 go func() {
-    consumer1 := broker.ConsumerMany(ctx, "test-stream")
+    consumer1, err := broker.ConsumerMany(ctx, "test-stream")
     defer consumer1.Cleanup()
-    consumer1.Consume(5, time.Second * 10, func(events []Event) {
+    err = consumer1.Consume(5, time.Second * 10, func(events []Event) {
         for _, event := range events {
-            event.ACK()
+            err := event.ACK()
+            if err != nil {
+                return err
+            }
         }
-    })
+        return nil
+    } error)
 }()
 
 go func() {
-    consumer2 := broker.ConsumerMany(ctx, "test-stream")
+    consumer2, err := broker.ConsumerMany(ctx, "test-stream")
     defer consumer2.Cleanup()
-    consumer2.Consume(5, time.Second * 10, func(events []Event) {
+    rr = consumer2.Consume(5, time.Second * 10, func(events []Event) {
         for _, event := range events {
-            event.ACK()
+            err := event.ACK()
+            if err != nil {
+                return err
+            }
         }
-    })
+        return nil
+    } error)
 }()
 ```
 
@@ -108,13 +120,17 @@ to assure messages are not lost.
 
 ```go
 broker := ctx.GetEventBroker()
-consumer := broker.ConsumerMany(ctx, "test-stream")
+consumer, err := broker.ConsumerMany(ctx, "test-stream")
 defer consumer.Cleanup()
-consumer.AutoClaim(1000, time.Minute * 10, func(events []Event) {
+err = consumer.AutoClaim(1000, time.Minute * 10, func(events []Event) {
     for _, event := range events {
-        event.ACK()
+        err := event.ACK()
+        if err != nil {
+            return err
+        }
     }
-})
+    return nil
+} error)
 ```
 
 Above example will claim max up to 1000 pending messages in one iteration are not acknowledged longer than 10 minutes

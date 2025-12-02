@@ -24,7 +24,7 @@ func main() {
     }
     orm := engine.NewContext(context.Background())
     
-    alters := fluxaorm.GetAlters(orm)
+    alters, err := fluxaorm.GetAlters(orm)
     for _, alter := range alters {
       alter.SQL // "CREATE TABLE `CategoryEntity` ..."
       alter.Pool // "products"
@@ -44,7 +44,7 @@ To execute all the alters, you can use a loop like this:
 
 ```go
 for _, alter := range alters {
-  alter.Exec()
+  err = alter.Exec()
 }
 ```
 
@@ -63,14 +63,14 @@ You can also use the `orm.EntitySchema` object of an entity to update its databa
 
 ```go{2}
 orm := engine.NewContext(context.Background())
-entitySchema := fluxaorm.GetEntitySchema[CategoryEntity](orm)
-alters, has := entitySchema.GetSchemaChanges(orm)
+entitySchema, err := fluxaorm.GetEntitySchema[CategoryEntity](orm)
+alters, has, err := entitySchema.GetSchemaChanges(orm)
 if has {
     for _, alter := range alters {
       alter.SQL // "CREATE TABLE `CategoryEntity` ..."
       alter.Pool // "products"
       alter.Safe // true
-      alter.Exec()
+      err = alter.Exec()
     }
 }
 ```
@@ -79,16 +79,16 @@ For convenience, you can use the following short versions to execute all the nec
 
 ```go{3-4}
 orm := engine.NewContext(context.Background())
-entitySchema := fluxaorm.GetEntitySchema[CategoryEntity](orm)
-entitySchema.UpdateSchema(engine) // executes all alters
-entitySchema.UpdateSchemaAndTruncateTable(engine) // truncates table and executes all alters
+entitySchema, err := fluxaorm.GetEntitySchema[CategoryEntity](orm)
+err = entitySchema.UpdateSchema(engine) // executes all alters
+err = entitySchema.UpdateSchemaAndTruncateTable(engine) // truncates table and executes all alters
 ```
 
 The `orm.EntitySchema` object also provides several useful methods for managing the entity table:
 
 ```go
 orm := engine.NewContext(context.Background())
-entitySchema := fluxaorm.GetEntitySchema[CategoryEntity](orm)
-entitySchema.DropTable(orm) // drops the entire table
-entitySchema.TruncateTable(orm) // truncates the table
+entitySchema, err := fluxaorm.GetEntitySchema[CategoryEntity](orm)
+err = entitySchema.DropTable(orm) // drops the entire table
+err = entitySchema.TruncateTable(orm) // truncates the table
 ```

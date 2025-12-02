@@ -32,7 +32,7 @@ func main() {
     }
     orm := engine.NewContext(context.Background())
     
-    categoryCars := fluxaorm.NewEntity[CategoryEntity](orm)
+    categoryCars, err := fluxaorm.NewEntity[CategoryEntity](orm)
     categoryCars.Name = "Cars"
     err := fluxaorm.FlushAsync()
 }  
@@ -47,7 +47,7 @@ as demonstrated below:
 
 ```go
 consumer := fluxaorm.NewLazyFlashConsumer(ctx)
-consumer.Consume(time.Second) // blocks and waits 1 second max for new SQL queries to be processed
+err := consumer.Consume(time.Second) // blocks and waits 1 second max for new SQL queries to be processed
 ```
 
 ## Understanding Cache Updates
@@ -67,28 +67,28 @@ type UserEntity struct {
 	Name string `orm:"required;unique=Name"`
 }
 
-category := fluxaorm.NewEntity[CategoryEntity](orm) // ID 1
+category, err := fluxaorm.NewEntity[CategoryEntity](orm) // ID 1
 category.Name = "cars"
-user := fluxaorm.NewEntity[UserEntity](orm) // ID 1
+user, err := fluxaorm.NewEntity[UserEntity](orm) // ID 1
 categoryCars.Name = "Tom"
-c.FlushAsync()
+err = c.FlushAsync()
 
 // The following code is executed in another thread just after the previous code
 // but before consumer.Consume() consumes events:
 
 // Returns valid data because it's saved in Redis
-category, found := fluxaorm.GetByID[CategoryEntity](orm, 1)
-categories := fluxaorm.GetByIDs[CategoryEntity](orm, 1)
-category, found := fluxaorm.GetByUniqueIndex[CategoryEntity](orm, "Name", "cars")
+category, found, err := fluxaorm.GetByID[CategoryEntity](orm, 1)
+categories, err := fluxaorm.GetByIDs[CategoryEntity](orm, 1)
+category, found, err := fluxaorm.GetByUniqueIndex[CategoryEntity](orm, "Name", "cars")
 // Returns nil because UserEntity does not use any cache
-user, found := fluxaorm.GetByID[UserEntity](orm, 1)
-users := fluxaorm.GetByIDs[UserEntity](orm, 1)
+user, found, err := fluxaorm.GetByID[UserEntity](orm, 1)
+users, err := fluxaorm.GetByIDs[UserEntity](orm, 1)
 // Returns valid data because unique indexes are always cached in Redis
-user, found := fluxaorm.GetByUniqueIndex[UserEntity](orm, "Name", "Tom")
+user, found, err := fluxaorm.GetByUniqueIndex[UserEntity](orm, "Name", "Tom")
 
 // Returns nil because search functions never use cache
-category, found = SearchOne[CategoryEntity](orm, fluxaorm.NewWhere("Name = ?", "cars"))
-user, found = SearchOne[UserEntity](orm, fluxaorm.NewWhere("Name = ?", "Tom"))
+category, found, err = SearchOne[CategoryEntity](orm, fluxaorm.NewWhere("Name = ?", "cars"))
+user, found, err = SearchOne[UserEntity](orm, fluxaorm.NewWhere("Name = ?", "Tom"))
 ```
 
 Below, you'll find a list of functions that return updated entity data when `FlushAsync()` is executed:

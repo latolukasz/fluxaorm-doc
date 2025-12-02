@@ -9,9 +9,9 @@ For example:
 
 ```go
 orm := engine.NewContext(context.Background())
-user, _ := orm.GetById[UserEntity](orm, 1) // executes request do DB/Redis
+user, _, err := orm.GetById[UserEntity](orm, 1) // executes request do DB/Redis
 ...
-user, _ = orm.GetById[UserEntity](orm, 1) // executes request do DB/Redis
+user, _, err = orm.GetById[UserEntity](orm, 1) // executes request do DB/Redis
 
 ```
 
@@ -31,9 +31,9 @@ You can clear context cache by running `ClearCache()`:
 ```go
 orm := engine.NewContext(context.Background())
 orm.EnableContextCache()
-user, _ := orm.GetById[UserEntity](orm, 1) // executes request do DB/Redis
+user, _, err := orm.GetById[UserEntity](orm, 1) // executes request do DB/Redis
 orm.ClearCache()
-user, _ := orm.GetById[UserEntity](orm, 1) // executes request do DB/Redis
+user, _, err := orm.GetById[UserEntity](orm, 1) // executes request do DB/Redis
 ```
 
 You should clear context cache in case you are uisng context for a long time to avoid using data that is not up to date.

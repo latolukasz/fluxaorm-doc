@@ -36,7 +36,7 @@ Using the FluxaORM Redis data pool, you can execute all Redis commands except [S
 
 ```go
 redisPool := engine.Redis(orm.DefaultPoolCode)
-redisPool.Set(orm, "my-key", "some-value", 30) // cache for 30 seconds
+err := redisPool.Set(orm, "my-key", "some-value", 30) // cache for 30 seconds
 value, has, err := redisPool.Get(orm, "my-key")
 if err != nil {
     panic(err)
@@ -44,7 +44,7 @@ if err != nil {
 pushed, err := redisPool.LPUsh(orm, "another-key", "value-1", "value-2")
 
 testPool := engine.Redis("test")
-testPool.FlushDB(orm) // flush redis DB 3
+err = testPool.FlushDB(orm) // flush redis DB 3
 ```
 
 ## Using Redis Pipelines
@@ -56,14 +56,14 @@ pipeLine := c.RedisPipeLine(orm.DefaultPoolCode)
 pipeLine.Set("key-1", "value-1", time.Hour)
 pipeLine.Set("key-2", "value-2", time.Hour)
 pipeLine.Set("key-3", "value-3", time.Hour)
-pipeLine.Exec() // sends 3 set commands in one request
+err = pipeLine.Exec() // sends 3 set commands in one request
 
 pipeLine = c.RedisPipeLine(orm.DefaultPoolCode)
 c1 := pipeLine.Get("key-1")
 c2 := pipeLine.Get("key-2")
 c3 := pipeLine.Get("key-3")
 c4 := pipeLine.Get("key-4")
-pipeLine.Exec()
+err = pipeLine.Exec()
 val, has := c1.Result() // "value-1", true
 val, has = c2.Result() // "value-2", true
 val, has = c3.Result() // "value-3", true

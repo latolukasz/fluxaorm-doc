@@ -8,7 +8,7 @@ locker := engine.Redis(orm.DefaultPoolCode).GetLocker()
 func testLock(name string) {
     fmt.Printf("GETTING LOCK %s\n", name)
     // trying to obtain lock for one minute, do not wait if lock in in use already
-    lock, obtained := locker.Obtain(orm, "test_lock", time.Minute, 0)
+    lock, obtained, err := locker.Obtain(orm, "test_lock", time.Minute, 0)
     if !obtained {
         fmt.Printf("UNABLE TO GET LOCK %s\n", name)
         return
@@ -43,7 +43,7 @@ locker := engine.Redis(orm.DefaultPoolCode).GetLocker()
 
 func testLock(name string) {
     fmt.Printf("GETTING LOCK %s\n", name)
-    lock, obtained := locker.Obtain(orm, "test_lock", time.Minute, time.Second * 5)
+    lock, obtained, err := locker.Obtain(orm, "test_lock", time.Minute, time.Second * 5)
     if obtained {
         defer lock.Release(orm)
         fmt.Printf("GOT LOCK %s\n", name)
@@ -68,19 +68,23 @@ You can also check when an obtained lock will expire and extend it if needed:
 
 ```go
 locker := engine.Redis(orm.DefaultPoolCode).GetLocker()
-lock, obtained := locker.Obtain(orm, "test", time.Second * 5, 0)
+lock, obtained, err := locker.Obtain(orm, "test", time.Second * 5, 0)
 if obtained {
     defer lock.Release(orm)
-    fmt.Printf("GOT LOCK FOR %d SECONDS\n", lock.TTL(orm).Seconds())
+    ttl, err := lock.TTL(orm)
+    fmt.Printf("GOT LOCK FOR %d SECONDS\n", ttl.Seconds())
     sleep(time.Second)
-    fmt.Printf("WILL EXPIRE IN %d SECONDS\n", lock.TTL(orm).Seconds())
+    ttl, err = lock.TTL(orm)
+    fmt.Printf("WILL EXPIRE IN %d SECONDS\n", ttl.Seconds())
     sleep(time.Second)
-    fmt.Printf("WILL EXPIRE IN %d SECONDS\n", lock.TTL(orm).Seconds())
+    ttl, err = lock.TTL(orm)
+    fmt.Printf("WILL EXPIRE IN %d SECONDS\n", ttl.Seconds())
     if !lock.Refresh(orm, time.Second * 2) {
         fmt.Println("LOST LOCK")
         return
     }
-    fmt.Printf("WILL EXPIRE IN %d SECONDS\n", lock.TTL(orm).Seconds())  
+    ttl, err = lock.TTL(orm)
+    fmt.Printf("WILL EXPIRE IN %d SECONDS\n", ttl.Seconds())  
 }
 ```
 

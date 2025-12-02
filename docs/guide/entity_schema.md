@@ -6,25 +6,25 @@ Using ` GetEntitySchema()` function:
 
 ```go{2}
 orm := engine.NewContext(context.Background())
-entitySchema := fluxaorm.GetEntitySchema[CarEntity](orm)
+entitySchema , err:= fluxaorm.GetEntitySchema[CarEntity](orm)
 ```
 
 Using `Registry` and the entity name:
 
 ```go
-entitySchema := engine.Registry().EntitySchema("main.CarEntity")
+entitySchema, err := engine.Registry().EntitySchema("main.CarEntity")
 ```
 
 Using `Registry` and the entity instance:
 
 ```go
-entitySchema := engine.Registry().EntitySchema(CarEntity{})
+entitySchema, err := engine.Registry().EntitySchema(CarEntity{})
 ```
 
 Using `Registry` and the entity type:
 
 ```go
-entitySchema := engine.Registry().EntitySchema(reflect.TypeOf(CarEntity{}))
+entitySchema, err := engine.Registry().EntitySchema(reflect.TypeOf(CarEntity{}))
 ```
 
 If the entity is not registered in the `orm.Registry`, above methods will return nil.
@@ -34,7 +34,7 @@ If the entity is not registered in the `orm.Registry`, above methods will return
 Once you have the `orm.EntitySchema` object, you can use the following methods to get useful information about the entity:
 
 ```go
-entitySchema := fluxaorm.GetEntitySchema[CarEntity](orm)
+entitySchema, err := fluxaorm.GetEntitySchema[CarEntity](orm)
 entitySchema.GetTableName() // "CarEntity"
 entitySchema.GetType() // Returns the reflect.Type of the CarEntity
 entitySchema.GetColumns() // []string{"ID", "Color", "Owner"}
@@ -50,7 +50,7 @@ type CarEntity struct {
 	ID    uint64 `orm:"my-tag-1=value-1"` 
 	Color string `orm:"my-tag-2=value-2;my-tag-3"` 
 }
-entitySchema := fluxaorm.GetEntitySchema[CarEntity](orm)
+entitySchema, err := fluxaorm.GetEntitySchema[CarEntity](orm)
 entitySchema.GetTag("ORM", "my-tag-1", "", "") // value-1
 entitySchema.GetTag("Color", "my-tag-2", "", "") // value-2
 entitySchema.GetTag("Color", "my-tag-3", "yes", "") // yes
@@ -63,7 +63,7 @@ entitySchema.GetTag("Color", "missing-tag", "", "default value") // default valu
 To retrieve entity MySQL pool, you can use the `GetDB()` method:
 
 ```go
-entitySchema := fluxaorm.GetEntitySchema[CarEntity](orm)
+entitySchema, err := fluxaorm.GetEntitySchema[CarEntity](orm)
 db := entitySchema.GetDB()
 ```
 
@@ -72,7 +72,7 @@ db := entitySchema.GetDB()
 To retrieve entity Redis cache pool, you can use the `GetRedisCache()` method:
 
 ```go
-entitySchema := fluxaorm.GetEntitySchema[CarEntity](orm)
+entitySchema, err := fluxaorm.GetEntitySchema[CarEntity](orm)
 redisPool, hasRedisCache := entitySchema.GetRedisCache()
 ```
 
@@ -82,7 +82,7 @@ redisPool, hasRedisCache := entitySchema.GetRedisCache()
 To retrieve entity local cache pool, you can use the `GetLocalCache()` method:
 
 ```go
-entitySchema := fluxaorm.GetEntitySchema[CarEntity](orm)
+entitySchema, err := fluxaorm.GetEntitySchema[CarEntity](orm)
 localCache, hasLocalCache := entitySchema.GetLocalCache()
 ```
 
@@ -95,7 +95,7 @@ type CarEntity struct {
 	ID    uint64 `orm:"localCache;redisCache"` 
 	Color string 
 }
-entitySchema := fluxaorm.GetEntitySchema[CarEntity](orm)
+entitySchema, err := fluxaorm.GetEntitySchema[CarEntity](orm)
 entitySchema.DisableCache(true, true) // disables both redis and local cache
 ```
 
@@ -104,8 +104,8 @@ entitySchema.DisableCache(true, true) // disables both redis and local cache
 You can clear redis and local cache for specific Entity using `ClearCache()` method which returns number of cleared redis keys:
 
 ```go
-entitySchema := fluxaorm.GetEntitySchema[CarEntity](orm)
-removedItemsInRedis := entitySchema.ClearCache(orm)
+entitySchema, err := fluxaorm.GetEntitySchema[CarEntity](orm)
+removedItemsInRedis, err := entitySchema.ClearCache(orm)
 ```
 
 ::: warning

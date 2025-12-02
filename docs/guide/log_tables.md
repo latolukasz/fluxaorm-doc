@@ -62,17 +62,17 @@ server to store all log tables (see example above).
 Now it's time to save some data and see our first logs:
 
 ```go
-user := fluxaorm.NewEntity[UserEntity](orm)
+user, err := fluxaorm.NewEntity[UserEntity](orm)
 user.Name = "Adam"
 user.Age = 39
-c.Flush()
+err = c.Flush()
 ```
 
 To flush changes to database you need to execute in tour code:
 
 ```go
 consumer := fluxaorm.NewLogTablesConsumerSingle(ctx)
-finished := consumer.Consume(100, time.Second * 5) // blocks and waits max 5 seconds for max 100 new SQL queries to be processed
+finished, err := consumer.Consume(100, time.Second * 5) // blocks and waits max 5 seconds for max 100 new SQL queries to be processed
 ```
 
 Let's see what we can find in `__LogEntity_default_UserEntity` table:
@@ -102,7 +102,7 @@ Log tables has 6 columns:
 Now let's update our user:
 
 ```go
-user = fluxaorm.EditEntity(orm, user)
+user, err = fluxaorm.EditEntity(orm, user)
 user.Age = 18
 c.Flush()
 ```
@@ -122,8 +122,8 @@ SELECT * FROM _LogEntity_default_UserEntity WHERE ID = 2\G;
 At the end we will remove our entity:
 
 ```go
-orm.DeleteEntity(orm, entity)
-c.Flush()
+err := orm.DeleteEntity(orm, entity)
+err = c.Flush()
 ```
 
 ```sql
@@ -144,10 +144,10 @@ You can  register log meta data in `orm.ORM`:
 
 ```go{1}
 c.SetMetaData("ip", "213.22.11.24")
-user := fluxaorm.NewEntity[UserEntity](orm)
+user, err := fluxaorm.NewEntity[UserEntity](orm)
 user.Name = "Tom"
 user.Age = 20
-c.Flush()
+err = c.Flush()
 ```
 
 ```sql

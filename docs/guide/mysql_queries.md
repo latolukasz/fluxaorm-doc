@@ -32,22 +32,22 @@ To run queries that modify data in MySQL, use the `Exec()` method:
 
 ```go{2,6,10,15}
 db := engine.DB(orm.DefaultPoolCode)
-result := db.Exec(orm, "INSERT INTO `Cities`(`Name`, `CountryID`) VALUES(?, ?)", "Berlin", 12)
-result.LastInsertId() // 1
-result.RowsAffected() // 1
+result, err := db.Exec(orm, "INSERT INTO `Cities`(`Name`, `CountryID`) VALUES(?, ?)", "Berlin", 12)
+err = result.LastInsertId() // 1
+err = result.RowsAffected() // 1
 
-result = db.Exec(orm, "INSERT INTO `Cities`(`Name`, `CountryID`) VALUES(?, ?),(?, ?)", "Amsterdam", 13, "Warsaw", 14)
-result.LastInsertId() // 3
-result.RowsAffected() // 2
+result, err = db.Exec(orm, "INSERT INTO `Cities`(`Name`, `CountryID`) VALUES(?, ?),(?, ?)", "Amsterdam", 13, "Warsaw", 14)
+err = result.LastInsertId() // 3
+err = result.RowsAffected() // 2
 
-result = db.Exec(orm, "UPDATE `Cities` SET `Name` = ? WHERE ID = ?", "New York", 1)
-result.LastInsertId() // 0
-result.RowsAffected() // 1
+result, err = db.Exec(orm, "UPDATE `Cities` SET `Name` = ? WHERE ID = ?", "New York", 1)
+err = result.LastInsertId() // 0
+err = result.RowsAffected() // 1
 
 dbUsers := engine.DB("users")
-dbUsers.Exec(orm, "DELETE FROM `Users` WHERE `Status` = ?", "rejected")
-result.LastInsertId() // 0
-result.RowsAffected() // 0
+result, err := dbUsers.Exec(orm, "DELETE FROM `Users` WHERE `Status` = ?", "rejected")
+err = result.LastInsertId() // 0
+err = result.RowsAffected() // 0
 ```
 
 ## Querying a Single Row
@@ -59,7 +59,7 @@ db := engine.DB(orm.DefaultPoolCode)
 where := fluxaorm.NewWhere("SELECT ID, Name FROM Cities WHERE ID = ?", 12)
 var id uint64
 var name string
-found := db.QueryRow(orm, where, &id, &name)
+found, err := db.QueryRow(orm, where, &id, &name)
 ```
 
 ## Querying Multiple Rows
@@ -70,11 +70,11 @@ To run a query that returns multiple rows, use the `Query()` method:
 db := engine.DB(orm.DefaultPoolCode)
 var id uint64
 var name string
-results, close := db.Query(orm, "SELECT ID, Name FROM Cities WHERE ID > ? LIMIT 100", 20)
+results, close, err := db.Query(orm, "SELECT ID, Name FROM Cities WHERE ID > ? LIMIT 100", 20)
 defer close()
 results.Columns() // []string{"ID", "Name"}
 for results.Next() {
-    results.Scan(&id, &name)
+    err = results.Scan(&id, &name)
 }
 ```
 
@@ -90,50 +90,13 @@ Working with transactions is straightforward:
 db := engine.DB(orm.DefaultPoolCode)
 
 func() {
-    tx := db.Begin(orm) 
+    tx, err := db.Begin(orm) 
     defer tx.Rollback(orm)
     // execute some queries
-    tx.Commit(orm)
+    err = tx.Commit(orm)
 }()
 ```
 
 :::tip
 Always put `defer Rollback()` after `Begin()`.
 :::
-
-## Prepared statements
-
-Using MySQL prepared statements  with FluxaORM is straightforward:
-
-```go
-db := engine.DB(orm.DefaultPoolCode)
-preparedStatement, close := db.Prepare(orm, "INSERT INTO `UserEntity(`Name`, `Age`)` VALUES(?,?)")
-defer close()
-res := preparedStatement.Exec("Tom", 12)
-res.LastInsertId() // 1
-res = preparedStatement.Exec("Ivona", 33)
-res.LastInsertId() // 2
-```
-
-```go
-db := engine.DB(orm.DefaultPoolCode)
-preparedStatement, close := db.Prepare(orm, "SELECT `ID`, `Name` FROM `UserEntity WHERE `ID` = ?")
-defer close()
-id := 0
-name := "
-preparedStatement.QueryRow([]interface{}{1}, &id, &name)
-preparedStatement.QueryRow([]interface{}{2}, &id, &name)
-```
-
-```go
-db := engine.DB(orm.DefaultPoolCode)
-preparedStatement, close := db.Prepare(orm, "SELECT `ID`, `Name` FROM `UserEntity WHERE `ID` > ?")
-defer close()
-id := 0
-name := "
-results, queryClose := preparedStatement.Query(2)
-defer queryClose()
-for results.Next() {
-    results.Scan(&id, &name)
-}
-```

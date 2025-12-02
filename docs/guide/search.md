@@ -74,9 +74,9 @@ The `Search()` function is used to search for entities using a SQL query conditi
 Here is an example of how to use the `Search()` function:
 
 ```go
-iterator := fluxaorm.Search[UserEntity](orm, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 100))
+iterator, err := fluxaorm.Search[UserEntity](orm, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 100))
 for iterator.Next() {
-    user := iterator.Entity()
+    user, err := iterator.Entity()
 }
 ```
 
@@ -89,16 +89,16 @@ orm.Search[UserEntity](orm, fluxaorm.NewWhere("Age >= ?", 18), nil)
 If you need the total number of found rows, you can use the `SearchWithCount()` function, which works exactly the same as `engine.Search()`, with the only difference being that it returns the total number of found rows as an int.
 
 ```go
-iterator, total := fluxaorm.SearchWithCount[UserEntity](orm, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 100))
+iterator, total, err := fluxaorm.SearchWithCount[UserEntity](orm, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 100))
 ```
 
 You can efficiently search for entities using the search methods offered by the [entity schema](/guide/entity_schema.html) object.
 
 ```go
-entitySchema := c.Engine().Registry().EntitySchema("mypackage.UserEntity")
+entitySchema, err := c.Engine().Registry().EntitySchema("mypackage.UserEntity")
 searchCriteria := fluxaorm.NewWhere("Age >= ?", 18)
 pagination := fluxaorm.NewPager(1, 100)
-iterator, total := entitySchema.SearchWithCount(orm, searchCriteria, pagination)
+iterator, total, err := entitySchema.SearchWithCount(orm, searchCriteria, pagination)
 ```
 
 ## Searching for a Single Entity
@@ -107,7 +107,7 @@ If you need to search for a single entity, you can use the `SearchOne()` functio
 
 ```go
 // returns nil if not found
-firstUser, found := fluxaorm.SearchOne[UserEntity](orm, fluxaorm.NewWhere("1 ORDER BY `CreatedAt`"))
+firstUser, found, err := fluxaorm.SearchOne[UserEntity](orm, fluxaorm.NewWhere("1 ORDER BY `CreatedAt`"))
 ```
 
 ::: tip
@@ -119,10 +119,10 @@ This function always adds `LIMIT 1` to the SQL query, so if your query selects m
 You can use the `SearchIDs()` or `SearchIDsWithCount` functions to search for the primary keys of an entity:
 
 ```go
-ids := fluxaorm.SearchIDs[UserEntity](orm, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 10))
+ids, err := fluxaorm.SearchIDs[UserEntity](orm, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 10))
 for _, id := range ids {
     fmt.Printf("ID: %d\n", id)
 }
 // if you need total rows
-ids, total := fluxaorm.SearchIDsWithCount[UserEntity](orm, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 10))
+ids, total, err := fluxaorm.SearchIDsWithCount[UserEntity](orm, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 10))
 ```

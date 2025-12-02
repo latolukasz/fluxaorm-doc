@@ -31,14 +31,14 @@ added to all MySQL indexes, including unique indexes. This approach allows yoo t
 Example:
 
 ```go
-userEntity := GetByID[UserEntity](orm, 3)
-fluxaorm.Delete(orm, &userEntity)
-orm.Flush() // UPDATE UserEntity SET FakeDelete = 3 WHERE ID = 3
+userEntity, err := GetByID[UserEntity](orm, 3)
+err = fluxaorm.Delete(orm, &userEntity)
+err = orm.Flush() // UPDATE UserEntity SET FakeDelete = 3 WHERE ID = 3
 
-userEntity, found := GetByID[UserEntity](orm, 3) // found = true
+userEntity, found, err := GetByID[UserEntity](orm, 3) // found = true
 userEntity.FakeDelete // true
 
-users := Search[UserEntity](orm, NewWhere("1"), nil)
+users, err := Search[UserEntity](orm, NewWhere("1"), nil)
 users.Len() // 0
 ```
 
@@ -47,7 +47,7 @@ users.Len() // 0
 You can use `ForceDeleteEntity()` function to force entity to be deleted from MySQL table.
 
 ```go
-fluxaorm.ForceDeleteEntity(orm, &userEntity) // DELETE FROM UserEntity WHERE ID = 3
+err := fluxaorm.ForceDeleteEntity(orm, &userEntity) // DELETE FROM UserEntity WHERE ID = 3
 ```
 
 ## Searching for entities marked as deleted
@@ -58,5 +58,5 @@ You can instruct fluxaorm to return in search results also entities marked as de
 ```go{2}
 where  := fluxaorm.NewWhere("1")
 where.WithFakeDeletes()
-users = fluxaorm.Search[UserEntity](orm, where, nil) // returns all entities, including marked as deleted
+users, err = fluxaorm.Search[UserEntity](orm, where, nil) // returns all entities, including marked as deleted
 ```

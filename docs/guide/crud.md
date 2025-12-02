@@ -49,26 +49,24 @@ func main() {
 ## Saving New Entities
 
 To insert a new entity into database you need to create new instance with `NewEntity()` function and run `orm.ORM` method
-`FlushWithCheck()`. See below example:
+`Flush()`. See below example:
 
 ```go
-categoryCars := fluxaorm.NewEntity[CategoryEntity](orm)
+categoryCars, err := fluxaorm.NewEntity[CategoryEntity](orm)
 categoryCars.Code = "cars"
 categoryCars.Name = "Cars"
-err := c.FlushWithCheck()
+err := c.Flush()
 ```
 
-You can also run `FLush()` which panics if there is an error.
-
-When method `FlushWithCheck()` of `orm.ORM` is executed all entities created with `NewEntity()` with this `orm.Context` function are
+When method `Flush()` of `orm.ORM` is executed all entities created with `NewEntity()` with this `orm.Context` function are
 inserted into MySQL and cache is updated. Below example demonstrates how to insert into MySQL multiple entities at once:
 
 ```go
-image1 := fluxaorm.NewEntity[ImageEntity](orm)
+image1, err := fluxaorm.NewEntity[ImageEntity](orm)
 image1.Url = "image1.png"
-image2 := fluxaorm.NewEntity[ImageEntity](orm)
+image2, err := fluxaorm.NewEntity[ImageEntity](orm)
 image2.Url = "image2.png"
-err := c.FlushWithCheck() // two rows are inserted into MySQL table
+err := c.Flush() // two rows are inserted into MySQL table
 ```
 
 You can also create new entity with `NewEntityFromSource()` function:
@@ -77,8 +75,8 @@ You can also create new entity with `NewEntityFromSource()` function:
 image1 := &ImageEntity{
     Url: "image1.png",
 }
-fluxaorm.NewEntityFromSource[ImageEntity](orm, image1) // registers image1 in orm context
-err := c.FlushWithCheck() // row is inserted into MySQL table
+err = fluxaorm.NewEntityFromSource[ImageEntity](orm, image1) // registers image1 in orm context
+err := c.Flush() // row is inserted into MySQL table
 ```
 
 You can also create new entity with `NewEntity()` method in orm context:
@@ -87,15 +85,15 @@ You can also create new entity with `NewEntity()` method in orm context:
 image1 := &ImageEntity{
     Url: "image1.png",
 }
-orm.NewEntity(image1)
-err := c.FlushWithCheck() // row is inserted into MySQL table
+err = orm.NewEntity(image1)
+err := c.Flush() // row is inserted into MySQL table
 ```
 
 If you are unsure about the entity type, perhaps knowing only the entity name, you can generate a new instance by employing the `NewEntity()` method within the _[entity schema](/guide/entity_schema.html)_ as illustrated below in Go:
 
 ```go
 entitySchema := c.Engine().Registry().EntitySchema("mypackage.UserEntity")
-newUser := entitySchema.NewEntity(orm)
+newUser, err := entitySchema.NewEntity(orm)
 ```
 
 ### Setting reference value
@@ -103,12 +101,12 @@ newUser := entitySchema.NewEntity(orm)
 Here's an example of how to set up a one-to-one reference
 
 ```go{5}
-image := fluxaorm.NewEntity[ImageEntity](orm)
+image, err := fluxaorm.NewEntity[ImageEntity](orm)
 image.Url = "image1.png"
 brandVolvo := fluxaorm.NewEntity[BrandEntity](orm)
 brandVolvo.Name = "Volvo"
 brandVolvo.Logo = fluxaorm.Reference[ImageEntity](image.ID)
-err := c.FlushWithCheck()
+err := c.Flush()
 ```
 
 ## Getting Entity by ID
@@ -118,19 +116,19 @@ There are several ways to get entities from the database when you know the prima
 You can use the `GetByID()` method:
 
 ```go
-product, found := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
+product, found, err := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
 ```
 
 In case you are sure entity with provided ID exists in database you can use `MustByID()`:
 
 ```go
-product := fluxaorm.MustByID[ProductEntity](orm, 27749843747733) // panics if not found
+product, err := fluxaorm.MustByID[ProductEntity](orm, 27749843747733) // panics if not found
 ```
 
 Furthermore, if you find yourself in a scenario where the entity type is unknown, you can still retrieve the entity by utilizing the `GetByID()` method within the [entity schema](/guide/entity_schema.html):
 ```go
-entitySchema := c.Engine().Registry().EntitySchema("mypackage.UserEntity")
-user, found := entitySchema.GetByID(orm, 12)
+entitySchema, err := c.Engine().Registry().EntitySchema("mypackage.UserEntity")
+user, found, err := entitySchema.GetByID(orm, 12)
 ```
 
 
@@ -139,10 +137,10 @@ user, found := entitySchema.GetByID(orm, 12)
 If you need to get more than one entity, you can use `GetByIDs()`:
 
 ```go
-iterator := fluxaorm.GetByIDs[ProductEntity](orm, 324343544424, 34545654434, 7434354434)
+iterator, err := fluxaorm.GetByIDs[ProductEntity](orm, 324343544424, 34545654434, 7434354434)
 iterator.Len() == 3 // true
 for iterator.Next() {
-    product := iterator.Entity()
+    product, err := iterator.Entity()
 }
 ```
 
@@ -151,7 +149,7 @@ for iterator.Next() {
 If entity holds unique index you can get entity by index name:
 
 ```go
-category, found := fluxaorm.GetByUniqueIndex[CategoryEntity](orm, "code", "cars")
+category, found, err := fluxaorm.GetByUniqueIndex[CategoryEntity](orm, "code", "cars")
 ```
 
 ## Getting Entities by Reference
@@ -159,9 +157,9 @@ category, found := fluxaorm.GetByUniqueIndex[CategoryEntity](orm, "code", "cars"
 You can easily get entities by one-one reference name:
 
 ```go
-iterator := fluxaorm.GetByReference[ProductEntity](orm, nil, "Category", 9934828848843)
+iterator, err := fluxaorm.GetByReference[ProductEntity](orm, nil, "Category", 9934828848843)
 for iterator.Next() {
-    product := iterator.Entity()
+    product, err := iterator.Entity()
 }
 ```
 
@@ -179,7 +177,7 @@ type ProductEntity struct {
 }
 
 // data is loaded from local cache only without any MySQL query to DB
-iterator := fluxaorm.GetByReference[ProductEntity](orm, pager.NewPager(1, 200), "Category", 9934828848843)
+iterator, err := fluxaorm.GetByReference[ProductEntity](orm, pager.NewPager(1, 200), "Category", 9934828848843)
 ```
 
 ## Getting Entities by Index
@@ -194,7 +192,7 @@ type ProductEntity struct {
 	...
 }
 
-iterator := fluxaorm.GetByIndex[ProductEntity](orm, nil, "ActiveInCategory", 9934828848843, true)
+iterator, err := fluxaorm.GetByIndex[ProductEntity](orm, nil, "ActiveInCategory", 9934828848843, true)
 ```
 
 You can also add `cached` tag to keep rows in cache:
@@ -214,7 +212,7 @@ type ProductEntity struct {
 You can get all entities from a table also:
 
 ```go
-iterator := fluxaorm.GetAll[ProductEntity](orm)
+iterator, err := fluxaorm.GetAll[ProductEntity](orm)
 for iterator.Next() {
     product := iterator.Entity()
 }
@@ -237,9 +235,9 @@ In many scenarios you may need to access the referenced entities from returned e
 Of course you can use `LoadReference()` method:
 
 ```go
-iterator := fluxaorm.GetByIDs[ProductEntity](orm, 324343544424, 34545654434, 7434354434)
+iterator, err := fluxaorm.GetByIDs[ProductEntity](orm, 324343544424, 34545654434, 7434354434)
 for iterator.Next() {
-    product := iterator.Entity()
+    product, err := iterator.Entity()
     product.Category.GetEntity(orm) // this line executes query to Redis/MySQL
 }
 ```
@@ -251,11 +249,11 @@ It can cause performance issues if you are loading a large number of requests to
 In this case, you can use `LoadReferences()` method to preload all referenced entities:
 
 ```go
-iterator := fluxaorm.GetByIDs[ProductEntity](orm, 324343544424, 34545654434, 7434354434)
-iterator.LoadReferences("Category") // this line executes one query to Redis/MySQL
-} 
+iterator, err := fluxaorm.GetByIDs[ProductEntity](orm, 324343544424, 34545654434, 7434354434)
+err = iterator.LoadReferences("Category") // this line executes one query to Redis/MySQL
+ 
 for iterator.Next() {
-    product := iterator.Entity()
+    product, err := iterator.Entity()
     product.Category.GetEntity(orm) // this line loads data from context cache
 }
 ```
@@ -266,10 +264,10 @@ Another example:
 
 ```go
 // loads two references in each entity
-iterator.LoadReferences("Category", "Brand")
+err = iterator.LoadReferences("Category", "Brand")
 
 // loads Brand reference and in BrandEntity loads Color and Manufacturer references
-iterator.LoadReferences("Brand/Color", "Brand/Manufacturer") 
+err = iterator.LoadReferences("Brand/Color", "Brand/Manufacturer") 
 ```
 
 ## Updating Entities
@@ -281,23 +279,23 @@ When updating an entity, the process involves retrieving it from the database an
 In this approach, you begin by obtaining the entity from the database and then create a modified copy using the `EditEntity()` function. Subsequently, you adjust the fields of the copy before applying the changes with the `Flush()` method. The following example illustrates the process:
 
 ```go{2}
-product, found := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
-newVersionOfProduct := fluxaorm.EditEntity(orm, product)
+product, found, err := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
+newVersionOfProduct, err := fluxaorm.EditEntity(orm, product)
 newVersionOfProduct.Name = "New name"
-c.Flush() 
+err = c.Flush() 
 ```
 
 It is essential to note that after executing `Flush()`, if you intend to edit the same entity again, you must rerun the `EditEntity()` function, as demonstrated in the corrected approach below:
 
 ```go
-product, found := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
+product, found, err := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
 newVersionOfProduct := fluxaorm.EditEntity(orm, product)
 newVersionOfProduct.Name = "New name"
-c.Flush() // Executes UPDATE ProductEntity SET Name = "New name"
+err = c.Flush() // Executes UPDATE ProductEntity SET Name = "New name"
 
-newVersionOfProduct = fluxaorm.EditEntity(orm, newVersionOfProduct)
+newVersionOfProduct, err = fluxaorm.EditEntity(orm, newVersionOfProduct)
 newVersionOfProduct.Name = "Another name"
-c.Flush() // Executes UPDATE ProductEntity SET Name = "Another name"
+err = c.Flush() // Executes UPDATE ProductEntity SET Name = "Another name"
 ```
 
 This ensures the proper handling of entity updates. However, it's worth noting that this approach may lead to high memory usage due to the allocation of memory for all entity fields, even if only a few fields are updated.
@@ -305,10 +303,10 @@ This ensures the proper handling of entity updates. However, it's worth noting t
 You can elso edit entity with `EditEntity()` method in orm context:
 
 ```go
-product, found := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
+product, found, err := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
 newVersionOfProduct := orm.EditEntity(product)
 newVersionOfProduct.Name = "New name"
-c.Flush() // Executes UPDATE ProductEntity SET Name = "New name"
+err = c.Flush() // Executes UPDATE ProductEntity SET Name = "New name"
 ```
 
 
@@ -317,26 +315,19 @@ c.Flush() // Executes UPDATE ProductEntity SET Name = "New name"
 An alternative method involves using the `EditEntityField()` function to define new values for specific entity fields. Afterward, the `Flush()` method is employed to execute all changes and apply the new values to the entity and its cache. The example below illustrates this approach:
 
 ```go
-product, found := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
-err := fluxaorm.EditEntityField(orm, product, "Name",  "New name")
-if err != nil {
-    return err
-}
-err := fluxaorm.EditEntityField(orm, product, "Price",  123.12)
-if err != nil {
-    return err
-}
-
-c.Flush()  // Executes UPDATE ProductEntity SET Name = "New name", Price = "123.12"
+product, found, err := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
+err = fluxaorm.EditEntityField(orm, product, "Name",  "New name")
+err = fluxaorm.EditEntityField(orm, product, "Price",  123.12)
+err = c.Flush()  // Executes UPDATE ProductEntity SET Name = "New name", Price = "123.12"
 ```
 
 It's important to remember that until the `Flush()` method is executed, the entity field retains its old value, as demonstrated in the following example:
 
 ```go
 fmt.Println(product.Name) // "Old value"
-orm.EditEntityField(orm, product, "Name",  "New value")
+err = orm.EditEntityField(orm, product, "Name",  "New value")
 product.Name // "Old value"
-c.Flush()
+err = c.Flush()
 product.Name // "New value"
 ```
 
@@ -348,8 +339,8 @@ You can use `IsDirty()` function to get list of changed entity fields:
 
 ```go
 fmt.Println(product.Name) // "Old value"
-orm.EditEntityField(orm, product, "Name",  "New value")
-oldValues, newValues, hasChanges := fluxaorm.IsDirty[ProductEntity](orm, 232)
+err = orm.EditEntityField(orm, product, "Name",  "New value")
+oldValues, newValues, hasChanges, err := fluxaorm.IsDirty[ProductEntity](orm, 232)
 if hasChanges {
     fmt.Printf("%v\n", oldValues) // ["Name": "Old value"]
     fmt.Printf("%v\n", newValues)  // ["Name": "New value"]
@@ -361,15 +352,15 @@ if hasChanges {
 Deleting entity is very simple. See below example:
 
 ```go
-product, found := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
-fluxaorm.DeleteEntity(orm, entity)
-c.Flush()
+product, found, err := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
+err = fluxaorm.DeleteEntity(orm, entity)
+err = c.Flush()
 ```
 
 ```go
-product, found := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
-orm.DeleteEntity(entity)
-c.Flush()
+product, found, err := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
+err = orm.DeleteEntity(entity)
+err = c.Flush()
 ```
 
 
@@ -383,25 +374,24 @@ This approach ensures that the execution of all database operations is both rapi
 Let's illustrate this with an example:
 
 ```go
-categoryCars := fluxaorm.NewEntity[CategoryEntity](orm)
+categoryCars, err := fluxaorm.NewEntity[CategoryEntity](orm)
 categoryCars.Code = "cars"
 categoryCars.Name = "Cars"
 
-image := fluxaorm.NewEntity[ImageEntity](orm)
+image, err := fluxaorm.NewEntity[ImageEntity](orm)
 image.Url = "image1.png"
 
-brandBMW := fluxaorm.NewEntity[BrandEntity](orm)
+brandBMW, err := fluxaorm.NewEntity[BrandEntity](orm)
 brandBMW.Name = "BMW"
 brandBMW.Logo = fluxaorm.Reference[ImageEntity](image.ID)
 
-oldProduct, found := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
-newProduct := fluxaorm.EditEntity(orm, oldProduct)
+oldProduct, found, err := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
+newProduct, err := fluxaorm.EditEntity(orm, oldProduct)
 newProduct.Category = fluxaorm.Reference[CategoryEntity](categoryCars.ID)
 
-oldImage, found := fluxaorm.GetByID[ImageEntity](orm, 277498837423)
-orm.DelteEntity(orm, oldImage)
-
-err := c.FlushWithCheck()
+oldImage, found , err:= fluxaorm.GetByID[ImageEntity](orm, 277498837423)
+err = orm.DelteEntity(orm, oldImage)
+err = c.Flush()
 ```
 
 ## Cloning entities
@@ -409,10 +399,10 @@ err := c.FlushWithCheck()
 Sometimes you may need to create a copy of an entity, make some changes to it, and save it as a new row in the database. You can easily do this using the `orm.Copy()` function:
 
 ```go{2}
-product, found := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
-newProduct := fluxaorm.Copy(orm, product)
+product, found, err := fluxaorm.GetByID[ProductEntity](orm, 27749843747733)
+newProduct, err := fluxaorm.Copy(orm, product)
 Name.Name = "New name"
-engine.Flush()
+err = engine.Flush()
 ```
 
 This will create a copy of the category entity, assign a new value to its Name field, and save it as a new row in the database. The original category entity will remain unchanged.

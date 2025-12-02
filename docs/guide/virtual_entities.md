@@ -23,14 +23,14 @@ Don't forget to add the redisCache or localCache tag to the entity definition. O
 You must define a primary key (ID) for virtual entities by setting ID value in your code when virtual entity is created.
 
 ```go
-row := fluxaorm.NewEntity[MyVirtualEntity](ctx)
+row, err := fluxaorm.NewEntity[MyVirtualEntity](ctx)
 row.ID // zero
 row.ID = 1
-ctx.Flush()
+err = ctx.Flush()
 
 // OR
-row := fluxaorm.NewEntityWithID[MyVirtualEntity](ctx, 1)
-ctx.Flush()
+row, err := fluxaorm.NewEntityWithID[MyVirtualEntity](ctx, 1)
+err = ctx.Flush()
 ```
 
 ## Virtual Entity with Redis Search
@@ -50,15 +50,15 @@ And later you can search for entities using Redis Search:
 ```go
 query = fluxaorm.NewRedisSearchQuery()
 query.AddFilterNumber("Age", 18)
-rows, total := fluxaorm.RedisSearch[MyVirtualEntity](ctx, query, nil)
+rows, total, err := fluxaorm.RedisSearch[MyVirtualEntity](ctx, query, nil)
 ```
 
 Indexing virtual entities is not supported using built-in [schema.ReindexRedisIndex](/guide/redis_search.html#reindexing-an-entity-index)
 mechanism. This code will throw an error:
 
 ```go
-schema := GetEntitySchema[MyVirtualEntity](orm)
-schema.ReindexRedisIndex(ctx) // throws error
+schema, err:= GetEntitySchema[MyVirtualEntity](orm)
+err = schema.ReindexRedisIndex(ctx) // throws error
 ```
 
 You must fill index by yourself using fluxaorm.NewEntity() method.

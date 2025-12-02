@@ -80,9 +80,9 @@ type PersonEntity struct {
 If at least one of your entities uses Redis Search, you must run fluxabee.GetRedisSearchAlters() when your application starts:
 
 ```go
-redisSearchAlters := fluxabee.GetRedisSearchAlters(orm)
+redisSearchAlters, err := fluxabee.GetRedisSearchAlters(orm)
 for _, alter := range redisSearchAlters {
-    alter.Exec(ctx)
+    err = alter.Exec(ctx)
 }
 ```
 
@@ -98,7 +98,7 @@ FluxaORM automatically updates the index when you add, update, or delete an enti
 However, if your Redis index data was manually removed or MySQL data was manually updated and you need to refresh Redis, you can use the entity schema ReindexRedisIndex() method:
 
 ```go
-schema := GetEntitySchema[UserEntity](orm)
+schema, err := GetEntitySchema[UserEntity](orm)
 schema.ReindexRedisIndex(ctx)
 ```
 
@@ -106,9 +106,9 @@ This operation can take some time (depending on how many entities are stored in 
 You can monitor progress using the FTInfo() Redis command:
 
 ```go
-schema := GetEntitySchema[UserEntity](orm)
+schema, err := GetEntitySchema[UserEntity](orm)
 r := ctx.Engine().Redis(schema.GetRedisSearchPoolCode())
-info, _ := r.FTInfo(orm, schema.GetRedisSearchIndexName())
+info, _, err := r.FTInfo(orm, schema.GetRedisSearchIndexName())
 fmt.Printf("Indexed: %d", info.PercentIndexed)
 ```
 
@@ -123,9 +123,9 @@ query.Query = "@Status:{active}"
 query.AddSortBy("Age", false) // sort by Age ASC
 query.AddFilter("Owner", 1, 1) // Owner = 1
 query.AddSortBy("Age", 18, nil) // Age >= 18
-iterator, total := fluxaorm.RedisSearch[UserEntity](orm, query, fluxaorm.NewPager(1, 100)
+iterator, total, err := fluxaorm.RedisSearch[UserEntity](orm, query, fluxaorm.NewPager(1, 100)
 for iterator.Next() {
-    user := iterator.Entity()
+    user, err := iterator.Entity()
 }
 ```
 
@@ -134,7 +134,7 @@ The Pager object is optional — if nil, FluxaORM searches all rows.
 If you only need entity primary keys, use RedisSearchIDs():
 ```go
 query = fluxaorm.NewRedisSearchQuery()
-ids, total := fluxaorm.RedisSearchIDs[UserEntity](orm, nil, nil) // all rows
+ids, total, err := fluxaorm.RedisSearchIDs[UserEntity](orm, nil, nil) // all rows
 ```
 
 ## Searching for a Single Entity
@@ -142,7 +142,7 @@ ids, total := fluxaorm.RedisSearchIDs[UserEntity](orm, nil, nil) // all rows
 Use RedisSearchOne() to retrieve a single entity:
 
 ```go
-user, found := fluxaorm.RedisSearchOne[UserEntity](orm, "@Email:{test@example.com}", nil)
+user, found, err := fluxaorm.RedisSearchOne[UserEntity](orm, "@Email:{test@example.com}", nil)
 ```
 
 ::: tip
