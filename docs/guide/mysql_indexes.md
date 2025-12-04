@@ -1,114 +1,69 @@
 # MySQL Indexes
 
-In this section, you will learn how to define MySQL table indexes using FluxaORM
+This section explains how to define MySQL table indexes using FluxaORM.
 
-## One Field in One Index
+## Defining Entity Indexes
 
-In FluxaORM, you can easily add each field to a MySQL index using special tags:
- * `orm:"index=IndexName"` for a non-unique index
- * `orm:"unique=IndexName"` for a unique index
+To define indexes for a specific entity, start by creating a variable that contains index definitions.
 
-For example, the following Go code defines a PersonEntity struct with three indexes:
-
-```go{4-5}
-type PersonEntity struct {
-    ID      uint64
-    Name    string
-    Age     uint8 `orm:"index=age"` 
-    Email   string `orm:"unique=email;required"` 
-    Mother  fluxaorm.Reference[PersonEntity]
-}
-```
-
-This will create the following indexes in the MySQL table:
-
-```sql
-  KEY `age` (`Age`),
-  UNIQUE KEY `email` (`Email`),
-  KEY `Mother` (`Mother`),
-```
-
-Note that you don't need to define an index for one-to-one references (Mother) in FluxaORM. It will create the index automatically.
-
-## Many Fields in One Index
-
-Sometimes you may need to add more than one field to a single index. In FluxaORM, you can do this by using the same index name for all fields and adding an extra suffix `:X`, where `X` is the position of the field within the index (starting from 1). You can skip the suffix for the first field (which is equivalent to using :1).
-
-For example, the following Go code defines a ShoeEntity struct with a single unique index spanning three fields:
-
-```go{3-5}
-type ShoeEntity struct {
-    ID       uint64
-    Name     string `orm:"unique=model"`
-    Color    string `orm:"unique=model:2"`
-    Size     uint8 `orm:"unique=model:3"`
-}
-```
-
-This will create the following unique index in the MySQL table:
-
-```sql
-  UNIQUE KEY `model` (`Name`, `Color`, `Size`),
-```
-
-## One Field in Many Indexes
-
-If you need to add a single field to multiple indexes, you can do so by separating the index names with a comma in the FluxaORM tag. For example:
-
-```go{4-5}
-type PersonEntity struct {
-    ID          uint64
-    FirstName   string `orm:"index=name:2"`
-    LastName    string `orm:"index=name,occupation:2;unique=lastname"`
-    Occupation  string `orm:"index=occupation"`
-}
-```
-
-This will create the following indexes in the MySQL table:
-
-```sql
-  KEY `model` (`LastName`, `FirstName`),
-  KEY `occupation` (`Occupation`, `LastName`),
-  UNIQUE KEY `lastname` (`LastName`),
-```
-
-Note that the LastName field is included in both the name and occupation indexes, and it is also defined as a unique key.
-
-## Defining Indexes in Subfields
-
-There may be cases where it is not possible to define indexes using field tags, such as when a struct field itself contains multiple fields that need to be included in an index. For example:
+For example, the code below defines a `userEntityIndexes` struct with three indexes:
 
 ```go
-type Address struct {
-   Country    string
-   City       string
-   Street     string
-   Building   uint
-   PostalCode string
-}
-
-type UserEntity struct {
-    ID             uint64
-    HomeAddress    Address
-    WorkAddress    Address
+var userEntityIndexes = struct {
+    Name   fluxaorm.IndexDefinition
+    Email  fluxaorm.UniqueIndexDefinition
+    Status fluxaorm.IndexDefinition
+}{
+    Name:   fluxaorm.IndexDefinition{"Name", false},
+    Email:  fluxaorm.UniqueIndexDefinition{"Email", false},
+    Status: fluxaorm.IndexDefinition{"Status,CreatedAt", false},
 }
 ```
 
-Suppose we need the following indexes:
+Next, implement the `fluxaorm.IndexInterface` for the entity and return the index definitions:
+
+```go
+type UserEntity struct {
+    ID        uint64
+    Name      string `orm:"rquired"`
+    Email     string `orm:"rquired"`
+    Status    enums.Status
+    CreatedAt time.TIme
+}
+
+func (e *UserEntity) Indexes() any {
+	return userEntityIndexes
+}
+```
+
+This will generate the following indexes in the MySQL table:
 
 ```sql
-KEY `homeStreet` (`HomeAddressStreet`),
-KEY `workAddress` (`WorkAddressCity`, `WorkAddressStreet`),
+  KEY `Name` (`Name`),
+  UNIQUE KEY `Email` (`Email`),
+  KEY `Status` (`Status`, `CreatedAt`),
 ```
 
-To define these indexes in FluxaORM, you can use tag attributes on the `ID` field:
+Later, you will learn how to [query entities using defined indexes](/guide/crud.html#getting-entities-by-unique-key).
 
-```go{2}
-type UserEntity struct {
-    ID             uint64     `orm:"index=homeStreet:HomeAddressStreet|workAddress:WorkAddressCity,WorkAddressStreet"`
-    HomeAdddress   Address
-    WorkAddress    Address
+## Cached Entity Indexes
+
+Both fluxaorm.IndexDefinition and fluxaorm.UniqueIndexDefinition include a boolean field named `Cached`.
+When set to true, all [queries](/guide/crud.html#getting-entities-by-unique-key) filtered by the corresponding index
+will be stored in cache.
+
+If the entity uses the Local Cache, rows are cached locally. Otherwise, Redis is used.
+
+```go{6}
+var userEntityIndexes = struct {
+	Name fluxaorm.IndexDefinition
+	Email fluxaorm.UniqueIndexDefinition
+	Status fluxaorm.IndexDefinition
+}{
+	Name: fluxaorm.IndexDefinition{"Name", true}, // cache all query results in cache
+	Email: fluxaorm.UniqueIndexDefinition{"Email", false},
+	Status: fluxaorm.IndexDefinition{"Status,CreatedAt", false},
 }
 ```
 
-This will create the two indexes specified above in the MySQL table.
+You do not need to manually update cached data. FluxaORM keeps cache entries up to date automatically.

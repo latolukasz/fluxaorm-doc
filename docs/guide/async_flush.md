@@ -79,12 +79,12 @@ err = c.FlushAsync()
 // Returns valid data because it's saved in Redis
 category, found, err := fluxaorm.GetByID[CategoryEntity](orm, 1)
 categories, err := fluxaorm.GetByIDs[CategoryEntity](orm, 1)
-category, found, err := fluxaorm.GetByUniqueIndex[CategoryEntity](orm, "Name", "cars")
+category, found, err := fluxaorm.GetByUniqueIndex[CategoryEntity](orm, CategoryEntityIndexes.Name, "cars")
 // Returns nil because UserEntity does not use any cache
 user, found, err := fluxaorm.GetByID[UserEntity](orm, 1)
 users, err := fluxaorm.GetByIDs[UserEntity](orm, 1)
 // Returns valid data because unique indexes are always cached in Redis
-user, found, err := fluxaorm.GetByUniqueIndex[UserEntity](orm, "Name", "Tom")
+user, found, err := fluxaorm.GetByUniqueIndex[UserEntity](orm, CategoryEntityIndexes.Name, "Tom")
 
 // Returns nil because search functions never use cache
 category, found, err = SearchOne[CategoryEntity](orm, fluxaorm.NewWhere("Name = ?", "cars"))
@@ -96,7 +96,6 @@ Below, you'll find a list of functions that return updated entity data when `Flu
 * [GetByID](/guide/crud.html#getting-entity-by-id) when the entity uses cache
 * [GetByIDs](/guide/crud.html#getting-entities-by-id) when the entity uses cache
 * [GetByUniqueIndex](/guide/crud.html#getting-entities-by-unique-key) always
-* [GetByReference](/guide/crud.html#getting-entities-by-reference) when the reference field has the `cached` tag
 * [GetAll](/guide/crud.html#getting-all-entities) when the ID field has the `cached` tag
 
 Please note that all [search functions](/guide/search.html) do not return updated entity data until `consumer.Consume()` processes the SQL queries.

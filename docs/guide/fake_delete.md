@@ -9,7 +9,6 @@ Entity marked as deleted is not returned by `GetByID` and `GetByIDs` functions b
  * `SearchOne`
  * `GetByIndex`
  * `GetByUniqueIndex`
- * `GetByReference`
  * `GetAll`
 
 

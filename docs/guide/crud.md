@@ -149,37 +149,8 @@ for iterator.Next() {
 If entity holds unique index you can get entity by index name:
 
 ```go
-category, found, err := fluxaorm.GetByUniqueIndex[CategoryEntity](orm, "code", "cars")
+category, found, err := fluxaorm.GetByUniqueIndex[CategoryEntity](orm, CategoryEntityIndexes.Name, "cars")
 ```
-
-## Getting Entities by Reference
-
-You can easily get entities by one-one reference name:
-
-```go
-iterator, err := fluxaorm.GetByReference[ProductEntity](orm, nil, "Category", 9934828848843)
-for iterator.Next() {
-    product, err := iterator.Entity()
-}
-```
-
-In the example above, a MySQL query `SELECT * FROM ProductEntity WHERE Category = 9934828848843` is executed. 
-If you find yourself using this query frequently, it is strongly recommended to include a special tag `cached`, near the reference field. 
-This tag instructs FluxaORM to cache the query results in the local cache or, if local cache is not enabled for the returned entity, in Redis. 
-Importantly, the cache is automatically updated whenever entities are added, updated, or deleted. 
-All you need to do is add the `cached` tag as follows:
-
-```go{3}
-type ProductEntity struct {
-	ID       uint64 `orm:"localCache"`
-	Category fluxaorm.Reference[CategoryEntity] `orm:"required;cached"`
-	...
-}
-
-// data is loaded from local cache only without any MySQL query to DB
-iterator, err := fluxaorm.GetByReference[ProductEntity](orm, pager.NewPager(1, 200), "Category", 9934828848843)
-```
-
 ## Getting Entities by Index
 
 You can easily get entities by index name:
@@ -192,19 +163,13 @@ type ProductEntity struct {
 	...
 }
 
-iterator, err := fluxaorm.GetByIndex[ProductEntity](orm, nil, "ActiveInCategory", 9934828848843, true)
-```
-
-You can also add `cached` tag to keep rows in cache:
-
-```go{3,4}
-type ProductEntity struct {
-	ID       uint64 `orm:"localCache"`
-	Category fluxaorm.Reference[CategoryEntity] `orm:"index=ActiveInCategory;required;cached"`
-	Active   bool `orm:"required"`            `orm:"index=ActiveInCategory:1;cached"`
-	...
+var ProductEntityIndexes = struct {
+	ActiveIncategory fluxaorm.IndexDefinition
+}{
+	ActiveIncategory: fluxaorm.IndexDefinition{"Category,Active", false},
 }
 
+iterator, err := fluxaorm.GetByIndex[ProductEntity](orm, nil, ProductEntityIndexes.ActiveIncategory, 9934828848843, true)
 ```
 
 ## Getting All Entities
