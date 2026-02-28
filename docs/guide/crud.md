@@ -69,6 +69,32 @@ err := ctx.Flush()
 
 The `New()` method automatically generates a unique ID for the entity using Redis-backed UUID generation. The entity is registered with the context immediately upon creation, so `ctx.Flush()` knows about it.
 
+### Creating with Initial Field Values
+
+If you want to set multiple field values at creation time, use `NewWithFields()`. For every entity, a `XxxFields` struct is generated where each field (except ID) is a pointer type — `nil` means "don't set, use default":
+
+```go
+code := "electronics"
+name := "Electronics"
+category := entities.CategoryEntityProvider.NewWithFields(ctx, &entities.CategoryEntityFields{
+    Code: &code,
+    Name: &name,
+})
+err := ctx.Flush()
+```
+
+This is equivalent to calling `New()` followed by individual setters, but more concise when setting many fields at once. Passing `nil` instead of a `*XxxFields` struct is the same as calling `New()`.
+
+For slice-typed fields (sets and bytes), a `nil` slice means "don't set" while a non-nil slice sets the value:
+
+```go
+tags := []enums.Tag{enums.TagList.Featured, enums.TagList.New}
+product := entities.ProductEntityProvider.NewWithFields(ctx, &entities.ProductEntityFields{
+    Name: &name,
+    Tags: tags, // sets the Tags field
+})
+```
+
 ### Creating with a Specific ID
 
 If you need to set the ID yourself, use `NewWithID()`:
@@ -260,7 +286,7 @@ The `Delete()` method marks the entity for deletion and registers it with the co
 
 `ctx.Flush()` is the central method that executes all pending operations. It processes all tracked entities and:
 
-1. **Inserts** new entities created with `Provider.New()` or `Provider.NewWithID()`
+1. **Inserts** new entities created with `Provider.New()`, `Provider.NewWithFields()`, or `Provider.NewWithID()`
 2. **Updates** existing entities that have dirty (modified) fields
 3. **Deletes** entities marked with `entity.Delete()`
 
