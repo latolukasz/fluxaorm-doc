@@ -1,134 +1,199 @@
-# Data pools
+# Data Pools
 
-It's time to learn how to set up connections to your databases in FluxaORM.
+This page covers the details of configuring MySQL, Redis, and local cache connection pools in FluxaORM.
 
-Each connection pool in FluxaORM requires a unique name that will be used in your code to identify the source of data. This name will be used later to access the data in your code. 
-Make sure to choose a clear and descriptive name for each connection pool to avoid confusion and make your code easy to read and maintain.
+Each connection pool requires a unique name (code) that identifies it throughout your application. Use `fluxaorm.DefaultPoolCode` (the string `"default"`) for your primary pools.
 
-## MySQL pool
+## MySQL Pool
 
-To connect to a MySQL database, you can use the `RegisterMySQL` method, which takes a MySQL golang sql driver [data source name](https://github.com/go-sql-driver/mysql#dsn-data-source-name) as an first argument. 
-The method is defined as follows:
+Register a MySQL connection using the `RegisterMySQL` method. The first argument is a standard Go MySQL driver [data source name](https://github.com/go-sql-driver/mysql#dsn-data-source-name):
 
 ```go
+import "github.com/latolukasz/fluxaorm/v2"
+
 registry := fluxaorm.NewRegistry()
 
-//MySQL pool with name "default" with default options:
-registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", fluxaorm.DefaultPoolCode, nil)
+// MySQL pool named "default" with default options:
+registry.RegisterMySQL("user:password@tcp(localhost:3306)/app", fluxaorm.DefaultPoolCode, nil)
 
-//pool with name "logs" and custom options:
-registry.RegisterMySQL("user:password@tcp(localhost:3306)/logs", "logs", *orm.MySQLOptions{MaxOpenConnections: 100})
+// Pool named "logs" with custom options:
+registry.RegisterMySQL("user:password@tcp(localhost:3306)/logs", "logs", &fluxaorm.MySQLOptions{
+    MaxOpenConnections: 100,
+})
 ```
+
+Equivalent YAML configuration:
 
 ```yml
 default:
-  mysql: 
-   uri: user:password@tcp(localhost:3306)/db
+  mysql:
+    uri: user:password@tcp(localhost:3306)/app
 logs:
-  mysql: 
+  mysql:
     uri: user:password@tcp(localhost:3306)/logs
     maxOpenConnections: 100
 ```
 
-### MySQL options
+### MySQL Options
 
-With `MySQLOptions` argument yon can configure very important [MySQL golang driver important setting](https://github.com/go-sql-driver/mysql#important-settings):
+The `MySQLOptions` struct lets you configure connection pool behavior and schema defaults:
 
 ```go
-options := fluxaorm.MySQLPoolOptions{
-    MaxOpenConnections: 30, 
-    MaxIdleConnections: 20, 
-    ConnMaxLifetime: 3 * time.Minute,
-    DefaultEncoding: "greek", // utf8mb4 by default
-    DefaultCollate: "greek_general_ci", // 0900_ai_ci by default
-    IgnoredTables: []string{"table1", "table2"}}
-    
-registry.RegisterMySQLPool("user:password@tcp(localhost:3306)/db", "global", options)
+type MySQLOptions struct {
+    ConnMaxLifetime    time.Duration // max lifetime of a connection before it is closed
+    MaxOpenConnections int           // max number of open connections to the database
+    MaxIdleConnections int           // max number of idle connections in the pool
+    DefaultEncoding    string        // default character set (default: "utf8mb4")
+    DefaultCollate     string        // default collation (default: "0900_ai_ci")
+    IgnoredTables      []string      // tables to skip during schema sync
+    Beta               bool          // enable beta features (parseTime, UTC location)
+}
 ```
 
+Full example:
+
+```go
+import (
+    "time"
+
+    "github.com/latolukasz/fluxaorm/v2"
+)
+
+options := &fluxaorm.MySQLOptions{
+    MaxOpenConnections: 30,
+    MaxIdleConnections: 20,
+    ConnMaxLifetime:    3 * time.Minute,
+    DefaultEncoding:    "greek",
+    DefaultCollate:     "greek_general_ci",
+    IgnoredTables:      []string{"legacy_table", "temp_imports"},
+}
+
+registry.RegisterMySQL("user:password@tcp(localhost:3306)/app", fluxaorm.DefaultPoolCode, options)
+```
+
+Equivalent YAML:
+
 ```yml
-global:
-  mysql: 
-   uri: user:password@tcp(localhost:3306)/db
-   maxOpenConnections: 30
-   maxIdleConnections: 20
-   connMaxLifetime: 180 // seconds
-   defaultEncoding: greek
-   defaultCollate: greek_general_ci
-   ignoredTables:
-     - table1
-     - table2 
+default:
+  mysql:
+    uri: user:password@tcp(localhost:3306)/app
+    maxOpenConnections: 30
+    maxIdleConnections: 20
+    connMaxLifetime: 180
+    defaultEncoding: greek
+    defaultCollate: greek_general_ci
+    ignoredTables:
+      - legacy_table
+      - temp_imports
 ```
 
 ::: tip
-You can configure MySQL connection settings, including parameters like `maxOpenConnections` and `maxIdleConnections`, 
-but it's advisable to retain the default values (empty). FluxaORM can automatically determine and set the optimal settings based on your MySQL database configuration.
+You can configure MySQL connection settings such as `MaxOpenConnections` and `MaxIdleConnections`, but it is advisable to keep the default values (empty). During `Validate()`, FluxaORM queries your MySQL server's `max_connections` and `wait_timeout` variables and automatically calculates optimal pool settings.
 :::
 
-### Ignored tables
+### Ignored Tables
 
+By default, FluxaORM's [schema update](/guide/schema_update.html) will attempt to remove MySQL tables that are not defined as entities in your application. To keep external or legacy tables, list them in the `IgnoredTables` option.
 
-FluxaORM's default behavior is to attempt to [remove all MySQL tables](/guide/schema_update.html#schema-update)  that are not explicitly defined in your application code. 
-However, you have the option to retain these tables by specifying their names in the `IgnoredTables` option.
+## Local Cache Pool
 
-
-## Local cache pool
-
-FluxaORM offers a simple and extremely fast in-memory key-value cache for storing values. The cache uses the least recently used ([LRU](https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU))) algorithm to manage its size and automatically evicts the least frequently used values when it reaches capacity.
-
-To use the cache, you simply need to specify the pool name and the maximum number of cached keys:
+FluxaORM provides a fast in-memory key-value cache using the [LRU](https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU)) eviction algorithm. When the cache reaches capacity, the least recently used entries are evicted automatically.
 
 ```go
-// default pool with max 100 000 values
-registry.RegisterLocalCache(orm.DefaultPoolCode, 100000)
-// pool "last_searches" with no limits
-registry.RegisterLocalCache("last_searches", 0)
+// Default pool with max 100,000 entries
+registry.RegisterLocalCache(fluxaorm.DefaultPoolCode, 100000)
+
+// Pool for static lookups with no size limit
+registry.RegisterLocalCache("static_data", 0)
 ```
+
+Equivalent YAML:
 
 ```yml
 default:
   local_cache: 100000
-last_searches:
+static_data:
   local_cache: 0
 ```
 
 ::: tip
-When using FluxaORM's in-memory key-value cache, it's important to carefully consider the cache size. If the cache is too small, data will be evicted frequently, resulting in a low hit rate. On the other hand, if the cache is too large, it will use up a lot of memory and may contain data that is no longer needed.
-
-To optimize the use of the cache, you can define multiple pools with different cache sizes. For example, you can keep frequently accessed data in larger pools, while less frequently used data can be stored in smaller pools. This will help to ensure that the most relevant data is always available and that the cache is used efficiently.
+Choose cache sizes carefully. A cache that is too small will have a low hit rate due to frequent evictions. A cache that is too large will consume unnecessary memory. Consider defining multiple pools with different sizes — keep frequently accessed data in larger pools and less critical data in smaller ones.
 :::
 
-## Redis server pool
+## Redis Pool
 
-FluxaORM allows you to connect to Redis or DragonflyDB server or sentinel servers using the RegisterRedis method. This method requires a connection URI in the format HOST:PORT, followed by a Redis keys namespace and the database number (0-15).
-
-Here are some examples of how to use the RegisterRedis method:
+Register a Redis connection using the `RegisterRedis` method. The address argument accepts `host:port` format or a Unix socket path:
 
 ```go
-// pool with name "default", default options, pointing to Redis database #0:
+import "github.com/latolukasz/fluxaorm/v2"
+
+// Pool named "default", database 0, no authentication:
 registry.RegisterRedis("localhost:6379", 0, fluxaorm.DefaultPoolCode, nil)
 
-// pool with name "users", pointing to Redis database #1 with connection credentials:
-registry.RegisterRedis("/var/redis.sock", 1, "users", &orm.RedisOptions{User: "user", Password: "password"})
+// Pool named "sessions", database 1, with authentication:
+registry.RegisterRedis("localhost:6379", 1, "sessions", &fluxaorm.RedisOptions{
+    User:     "myuser",
+    Password: "secret",
+})
 
-// pool with name "cluster", pointing to Redis database #3 connected to Redis sentinel:
-options := &orm.RedisOptions{Master: "master_name", Sentinels: []string{":26379", "192.156.23.11:26379", "192.156.23.12:26379"}}
-registry.RegisterRedis("", 3, "cluster", options)
-
+// Unix socket connection:
+registry.RegisterRedis("/var/run/redis.sock", 0, "local", nil)
 ```
+
+Equivalent YAML:
 
 ```yml
 default:
-  redis:localhost:6379:0
-users:
-  redis:/var/redis.sock:1?user=user&password=pass
+  redis: localhost:6379:0
+sessions:
+  redis: localhost:6379:1?user=myuser&password=secret
+local:
+  redis: /var/run/redis.sock:0
+```
+
+### Redis Options
+
+```go
+type RedisOptions struct {
+    User            string                    // Redis username (ACL)
+    Password        string                    // Redis password
+    Master          string                    // Sentinel master name
+    Sentinels       []string                  // list of sentinel addresses
+    SentinelOptions *redis.FailoverOptions    // advanced sentinel config (overrides all other fields)
+}
+```
+
+### Redis Sentinel
+
+For production environments, we strongly recommend using Redis Sentinel for high availability:
+
+```go
+import "github.com/latolukasz/fluxaorm/v2"
+
+options := &fluxaorm.RedisOptions{
+    Master:    "mymaster",
+    Sentinels: []string{":26379", "192.168.1.2:26379", "192.168.1.3:26379"},
+    User:      "user",
+    Password:  "password",
+}
+
+registry.RegisterRedis("", 0, "cluster", options)
+```
+
+When using Sentinel, pass an empty string as the address — the client connects through the sentinel nodes instead.
+
+Equivalent YAML:
+
+```yml
 cluster:
   sentinel:
-    master_name:3?user=test&password=test2:
+    mymaster:0?user=user&password=password:
       - :26379
-      - 192.156.23.11:26379
-      - 192.156.23.12:26379
+      - 192.168.1.2:26379
+      - 192.168.1.3:26379
 ```
+
+For advanced Sentinel configuration, you can provide a `*redis.FailoverOptions` struct directly via the `SentinelOptions` field. When set, it overrides all other options (Master, Sentinels, User, Password).
 
 ::: tip
 We strongly recommend using Redis Sentinel pools instead of a single server pool in your production environment.

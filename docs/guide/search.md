@@ -1,128 +1,210 @@
-# Searching for Entities
+# Search
 
-In the previous section, you learned how to load entities from a database using their primary keys. In this section, we will cover how to search and load entities using other criteria. This can be useful when you want to find specific entities that meet certain conditions or when you want to retrieve a list of entities that match a certain search query. We will explore different techniques for searching and loading entities using various filters and search parameters.
+In the previous section, you learned how to load entities from a database using their primary keys. In this section, we will cover how to search and load entities using SQL query conditions. This is useful when you need to find entities that match specific criteria or retrieve paginated lists of results.
+
+In FluxaORM v2, search methods are generated on the entity's Provider. Results are returned as plain slices -- there are no iterators.
 
 ## Using the Pager Object
 
-It is a good practice to limit the number of rows returned in a search query using the `LIMIT` condition in SQL. The FluxaORM library provides a special object called the `Pager` to help define the proper SQL syntax for pagination in your queries.
-
-Here is an example of how to use the Pager object:
+It is good practice to limit the number of rows returned in a search query. FluxaORM provides the `Pager` object to define SQL `LIMIT` clauses for pagination.
 
 ```go
-// load first 100 rows
-pager := fluxaorm.NewPager(1, 100) // LIMIT 0, 100
-pager.GetPageSize() // 100
+import "github.com/latolukasz/fluxaorm/v2"
+
+// Load first 100 rows
+pager := fluxaorm.NewPager(1, 100) // LIMIT 0,100
+pager.GetPageSize()    // 100
 pager.GetCurrentPage() // 1
-pager.String() // "LIMIT 0,100"
+pager.String()         // "LIMIT 0,100"
 
-// load next 100 rows (page nr 2)
-pager = fluxaorm.NewPager(2, 100) // LIMIT 100, 100
-pager.GetPageSize() // 100
+// Load next 100 rows (page 2)
+pager = fluxaorm.NewPager(2, 100) // LIMIT 100,100
+pager.GetPageSize()    // 100
 pager.GetCurrentPage() // 2
-pager.String() // "LIMIT 100,100"
+pager.String()         // "LIMIT 100,100"
 
-pager.IncrementPage() // LIMIT 200, 100
+// Move to the next page
+pager.IncrementPage()
 pager.GetCurrentPage() // 3
 ```
 
 ## Using the Where Object
 
-Every SQL search query requires specific search conditions to be defined. The `orm.Where` object can be used to define these conditions in a convenient and flexible way.
-
-Here is an example of how to use the `Where` object:
+Every SQL search query requires conditions. Use `fluxaorm.NewWhere()` to define these conditions:
 
 ```go
-// WHERE Email = "fluxa@orm.dev" AND Age >= 18
-where := fluxaorm.NewWhere("Email = ? AND Age >= ?", "fluxa@orm.dev", 18)
-where.String() // returns: "Email = ? AND Age >= ?"
-where.GetParameters() // returns: []interface{}{"fluxa@orm.dev", 18}
+import "github.com/latolukasz/fluxaorm/v2"
 
-// update the first parameter
-where.SetParameter(1, "lion@orm.io")
-where.GetParameters() // returns: []interface{}{"lion@orm.io", 18}
-
-// update all parameters
-where.SetParameters("elephant@orm.io", 20)
-where.GetParameters() // returns: []interface{}{"elephant@orm.io", 20}
-
-// append additional conditions
-where.Append(" AND Age <= ?", 60)
-where.String() // returns: "Email = ? AND Age >= ? AND Age <= ?"
-where.GetParameters() // returns: []interface{}{"elephant@orm.io", 20, 60}
+// WHERE Email = "alice@example.com" AND Age >= 18
+where := fluxaorm.NewWhere("Email = ? AND Age >= ?", "alice@example.com", 18)
+where.String()        // "Email = ? AND Age >= ?"
+where.GetParameters() // []any{"alice@example.com", 18}
 ```
 
-You can also use the `Where` object to define the `ORDER BY` clause in a query:
+### Modifying Parameters
+
+You can update individual parameters or replace all parameters after creating a `Where`:
+
+```go
+// Update the first parameter (1-indexed)
+where.SetParameter(1, "bob@example.com")
+where.GetParameters() // []any{"bob@example.com", 18}
+
+// Replace all parameters
+where.SetParameters("carol@example.com", 21)
+where.GetParameters() // []any{"carol@example.com", 21}
+```
+
+### Appending Conditions
+
+You can append additional conditions to an existing `Where`:
+
+```go
+where := fluxaorm.NewWhere("Email = ? AND Age >= ?", "alice@example.com", 18)
+where.Append(" AND Age <= ?", 60)
+where.String()        // "Email = ? AND Age >= ? AND Age <= ?"
+where.GetParameters() // []any{"alice@example.com", 18, 60}
+```
+
+### ORDER BY Clause
+
+You can include `ORDER BY` directly in the where clause:
 
 ```go
 // WHERE 1 ORDER BY Age
 where := fluxaorm.NewWhere("1 ORDER BY Age")
+
 // WHERE Age > 10 ORDER BY Age
-where := fluxaorm.NewWhere("Age > ? ORDER BY Age", 10)
+where = fluxaorm.NewWhere("Age > ? ORDER BY Age", 10)
 ```
-If you pass a slice as an argument to `orm.Where`, it will automatically convert it into the `SQL IN (?,?,...)` syntax, which can simplify your code. For example:
+
+### Slice (IN) Parameters
+
+If you pass a slice as a parameter, FluxaORM automatically expands it into `IN (?,?,...)` syntax:
 
 ```go
 where := fluxaorm.NewWhere("Age IN ?", []int{18, 20, 30})
-where.String() // WHERE Age IN (?,?,?)
-where.GetParameters() // []interface{}{18, 20, 30}
+where.String()        // "Age IN (?,?,?)"
+where.GetParameters() // []any{18, 20, 30}
 ```
 
 ## Searching for Entities
 
-The `Search()` function is used to search for entities using a SQL query condition.
-
-Here is an example of how to use the `Search()` function:
+Use the `Search()` method on the Provider to find entities matching a SQL condition. It returns a plain slice of entity pointers:
 
 ```go
-iterator, err := fluxaorm.Search[UserEntity](orm, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 100))
-for iterator.Next() {
-    user, err := iterator.Entity()
+import "github.com/latolukasz/fluxaorm/v2"
+
+users, err := UserProvider.Search(ctx, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 100))
+if err != nil {
+    // handle error
+}
+for _, user := range users {
+    fmt.Printf("User: %s\n", user.GetName())
 }
 ```
 
-The Pager object is optional. If you provide nil, FluxaORM will search for all rows.
+The `Pager` argument is optional. Pass `nil` to search for all matching rows without a limit:
 
 ```go
-orm.Search[UserEntity](orm, fluxaorm.NewWhere("Age >= ?", 18), nil)
+users, err := UserProvider.Search(ctx, fluxaorm.NewWhere("Age >= ?", 18), nil)
 ```
 
-If you need the total number of found rows, you can use the `SearchWithCount()` function, which works exactly the same as `engine.Search()`, with the only difference being that it returns the total number of found rows as an int.
+The `Where` argument is also optional. Pass `nil` to load all rows:
 
 ```go
-iterator, total, err := fluxaorm.SearchWithCount[UserEntity](orm, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 100))
+users, err := UserProvider.Search(ctx, nil, fluxaorm.NewPager(1, 100))
 ```
 
-You can efficiently search for entities using the search methods offered by the [entity schema](/guide/entity_schema.html) object.
+**Signature:**
+```go
+func (p XxxProvider) Search(ctx fluxaorm.Context, where fluxaorm.Where, pager *fluxaorm.Pager) ([]*XxxEntity, error)
+```
+
+## Searching with Total Count
+
+If you need the total number of matching rows (useful for pagination UIs), use `SearchWithCount()`:
 
 ```go
-entitySchema, err := c.Engine().Registry().EntitySchema("mypackage.UserEntity")
-searchCriteria := fluxaorm.NewWhere("Age >= ?", 18)
-pagination := fluxaorm.NewPager(1, 100)
-iterator, total, err := entitySchema.SearchWithCount(orm, searchCriteria, pagination)
+users, total, err := UserProvider.SearchWithCount(ctx, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 100))
+if err != nil {
+    // handle error
+}
+fmt.Printf("Showing %d of %d total users\n", len(users), total)
+```
+
+This executes a `SELECT COUNT(*)` query first, then fetches the page of results.
+
+**Signature:**
+```go
+func (p XxxProvider) SearchWithCount(ctx fluxaorm.Context, where fluxaorm.Where, pager *fluxaorm.Pager) ([]*XxxEntity, int, error)
 ```
 
 ## Searching for a Single Entity
 
-If you need to search for a single entity, you can use the `SearchOne()` function:
+Use `SearchOne()` to find a single entity matching the condition. This method automatically adds `LIMIT 1` to the query:
 
 ```go
-// returns nil if not found
-firstUser, found, err := fluxaorm.SearchOne[UserEntity](orm, fluxaorm.NewWhere("1 ORDER BY `CreatedAt`"))
+user, found, err := UserProvider.SearchOne(ctx, fluxaorm.NewWhere("Email = ?", "alice@example.com"))
+if err != nil {
+    // handle error
+}
+if !found {
+    fmt.Println("User not found")
+    return
+}
+fmt.Printf("Found user: %s\n", user.GetName())
 ```
 
 ::: tip
-This function always adds `LIMIT 1` to the SQL query, so if your query selects more than one row from the database, only the first row will be returned.
+`SearchOne()` always appends `LIMIT 1` to the SQL query, so even if your condition matches multiple rows, only the first result is returned.
 :::
+
+**Signature:**
+```go
+func (p XxxProvider) SearchOne(ctx fluxaorm.Context, where fluxaorm.Where) (*XxxEntity, bool, error)
+```
 
 ## Searching for Primary Keys
 
-You can use the `SearchIDs()` or `SearchIDsWithCount` functions to search for the primary keys of an entity:
+If you only need entity IDs without loading full entity data, use `SearchIDs()`:
 
 ```go
-ids, err := fluxaorm.SearchIDs[UserEntity](orm, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 10))
-for _, id := range ids {
-    fmt.Printf("ID: %d\n", id)
+ids, err := UserProvider.SearchIDs(ctx, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 100))
+if err != nil {
+    // handle error
 }
-// if you need total rows
-ids, total, err := fluxaorm.SearchIDsWithCount[UserEntity](orm, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 10))
+for _, id := range ids {
+    fmt.Printf("User ID: %d\n", id)
+}
 ```
+
+**Signature:**
+```go
+func (p XxxProvider) SearchIDs(ctx fluxaorm.Context, where fluxaorm.Where, pager *fluxaorm.Pager) ([]uint64, error)
+```
+
+If you also need the total count, use `SearchIDsWithCount()`:
+
+```go
+ids, total, err := UserProvider.SearchIDsWithCount(ctx, fluxaorm.NewWhere("Age >= ?", 18), fluxaorm.NewPager(1, 100))
+if err != nil {
+    // handle error
+}
+fmt.Printf("Found %d IDs out of %d total\n", len(ids), total)
+```
+
+**Signature:**
+```go
+func (p XxxProvider) SearchIDsWithCount(ctx fluxaorm.Context, where fluxaorm.Where, pager fluxaorm.Pager) ([]uint64, int, error)
+```
+
+## Summary
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `Search` | `([]*XxxEntity, error)` | Entities matching the condition |
+| `SearchWithCount` | `([]*XxxEntity, int, error)` | Entities + total count |
+| `SearchOne` | `(*XxxEntity, bool, error)` | Single entity (LIMIT 1) |
+| `SearchIDs` | `([]uint64, error)` | Primary keys only |
+| `SearchIDsWithCount` | `([]uint64, int, error)` | Primary keys + total count |

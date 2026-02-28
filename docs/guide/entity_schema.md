@@ -1,113 +1,176 @@
 # Entity Schema
 
-The `EntitySchema` object holds information about every registered entity. There are many ways to get the entity schema for an entity:
+The `entitySchema` object holds metadata about every registered entity -- its table name, columns, indexes, cache configuration, and more. In v2, `entitySchema` is an internal (unexported) type. You do not use it for CRUD operations; those are handled by the generated [Provider](/guide/crud.html). Instead, `entitySchema` is used for **introspection** and **schema management**.
 
-Using ` GetEntitySchema()` function:
+## Accessing Entity Schema
 
-```go{2}
-orm := engine.NewContext(context.Background())
-entitySchema , err:= fluxaorm.GetEntitySchema[CarEntity](orm)
-```
+Entity schemas are registered internally when you call `registry.Validate()`. You can access schema information through the generated Provider or through the engine's registry.
 
-Using `Registry` and the entity name:
+For most use cases, the generated Provider already exposes the entity's table name, DB pool code, and Redis pool code as internal fields used by query methods. If you need to inspect schema metadata programmatically (e.g., for tooling or migrations), you can use the `GetAlters()` and `GetRedisSearchAlters()` functions described in the [Schema Update](/guide/schema_update.html) guide.
 
-```go
-entitySchema, err := engine.Registry().EntitySchema("main.CarEntity")
-```
+## Schema Introspection Methods
 
-Using `Registry` and the entity instance:
+The `entitySchema` provides the following methods for inspecting entity metadata:
 
-```go
-entitySchema, err := engine.Registry().EntitySchema(CarEntity{})
-```
+### GetTableName
 
-Using `Registry` and the entity type:
+Returns the MySQL table name for the entity:
 
 ```go
-entitySchema, err := engine.Registry().EntitySchema(reflect.TypeOf(CarEntity{}))
+entitySchema.GetTableName() // e.g. "UserEntity"
 ```
 
-If the entity is not registered in the `orm.Registry`, above methods will return nil.
+### GetType
 
-### Entity Schema Getters
-
-Once you have the `orm.EntitySchema` object, you can use the following methods to get useful information about the entity:
+Returns the `reflect.Type` of the entity struct:
 
 ```go
-entitySchema, err := fluxaorm.GetEntitySchema[CarEntity](orm)
-entitySchema.GetTableName() // "CarEntity"
-entitySchema.GetType() // Returns the reflect.Type of the CarEntity
-entitySchema.GetColumns() // []string{"ID", "Color", "Owner"}
-entitySchema.GetUniqueIndexes() // []string{"IndexName"} // Returns names of all Unique indexes
+entitySchema.GetType() // reflect.Type for UserEntity
 ```
 
-### Accessing Entity Tags
+### GetColumns
 
-`EntitySchema` provides methods that helps you read orm struct tags:
+Returns a slice of all column names in the entity table, in order:
 
 ```go
-type CarEntity struct {
-	ID    uint64 `orm:"my-tag-1=value-1"` 
-	Color string `orm:"my-tag-2=value-2;my-tag-3"` 
-}
-entitySchema, err := fluxaorm.GetEntitySchema[CarEntity](orm)
-entitySchema.GetTag("ORM", "my-tag-1", "", "") // value-1
-entitySchema.GetTag("Color", "my-tag-2", "", "") // value-2
-entitySchema.GetTag("Color", "my-tag-3", "yes", "") // yes
-entitySchema.GetTag("Color", "missing-tag", "", "") // ""
-entitySchema.GetTag("Color", "missing-tag", "", "default value") // default value
+entitySchema.GetColumns() // []string{"ID", "Name", "Email", "Age"}
 ```
 
-## Entity MySQL pool
+### GetUniqueIndexes
 
-To retrieve entity MySQL pool, you can use the `GetDB()` method:
+Returns a map of unique index names to their column lists:
 
 ```go
-entitySchema, err := fluxaorm.GetEntitySchema[CarEntity](orm)
+entitySchema.GetUniqueIndexes() // map[string][]string{"Email": {"Email"}, "NameAge": {"Name", "Age"}}
+```
+
+## Data Pool Methods
+
+### GetDB
+
+Returns the MySQL `DB` pool assigned to the entity:
+
+```go
 db := entitySchema.GetDB()
 ```
 
-## Entity Redis pool
+### GetRedisCache
 
-To retrieve entity Redis cache pool, you can use the `GetRedisCache()` method:
+Returns the Redis cache pool for the entity, if configured:
 
 ```go
-entitySchema, err := fluxaorm.GetEntitySchema[CarEntity](orm)
-redisPool, hasRedisCache := entitySchema.GetRedisCache()
+redisCache, hasRedisCache := entitySchema.GetRedisCache()
 ```
 
-## Entity local cache pool
+### GetLocalCache
 
-
-To retrieve entity local cache pool, you can use the `GetLocalCache()` method:
+Returns the local in-memory cache pool for the entity, if configured:
 
 ```go
-entitySchema, err := fluxaorm.GetEntitySchema[CarEntity](orm)
 localCache, hasLocalCache := entitySchema.GetLocalCache()
 ```
 
-## Disabling cache
+## Accessing Entity Tags
 
-You can disable redis and local cache for specific Entity using `DisableCache()` method:
-
-```go{6}
-type CarEntity struct {
-	ID    uint64 `orm:"localCache;redisCache"` 
-	Color string 
-}
-entitySchema, err := fluxaorm.GetEntitySchema[CarEntity](orm)
-entitySchema.DisableCache(true, true) // disables both redis and local cache
-```
-
-## Clearing entity cache
-
-You can clear redis and local cache for specific Entity using `ClearCache()` method which returns number of cleared redis keys:
+`entitySchema` provides a method to read `orm` struct tags:
 
 ```go
-entitySchema, err := fluxaorm.GetEntitySchema[CarEntity](orm)
-removedItemsInRedis, err := entitySchema.ClearCache(orm)
+type UserEntity struct {
+    ID    uint64 `orm:"redisCache"`
+    Name  string `orm:"required;length=100"`
+    Email string `orm:"required;unique=Email"`
+}
+
+entitySchema.GetTag("Name", "required", "yes", "")   // "yes"
+entitySchema.GetTag("Name", "length", "", "")         // "100"
+entitySchema.GetTag("Email", "unique", "", "")        // "Email"
+entitySchema.GetTag("Email", "missing", "", "default") // "default"
+```
+
+The method signature is `GetTag(field, key, trueValue, defaultValue string) string`. When the tag value is `"true"`, it returns `trueValue` instead. If the tag is not found, it returns `defaultValue`.
+
+## Cache Management
+
+### DisableCache
+
+You can disable Redis and/or local cache for a specific entity at runtime:
+
+```go
+entitySchema.DisableCache(true, true) // disables both local and Redis cache
+entitySchema.DisableCache(true, false) // disables only local cache
+entitySchema.DisableCache(false, true) // disables only Redis cache
+```
+
+### ClearCache
+
+Clears Redis and local cache entries for the entity. Returns the number of removed Redis keys:
+
+```go
+removedKeys, err := entitySchema.ClearCache(ctx)
 ```
 
 ::: warning
-If entity uses millions of records in Redis, clearing cache can take a some time because Redis will scan all keys.
+If the entity has millions of records in Redis, clearing cache can take some time because Redis scans all keys.
 :::
+
+## Schema Management
+
+### GetSchemaChanges
+
+Compares the entity definition against the current MySQL table and returns any pending alterations:
+
+```go
+alters, hasChanges, err := entitySchema.GetSchemaChanges(ctx)
+if hasChanges {
+    for _, alter := range alters {
+        err = alter.Exec(ctx)
+    }
+}
+```
+
+### UpdateSchema
+
+Convenience method that retrieves and executes all pending schema changes:
+
+```go
+err := entitySchema.UpdateSchema(ctx)
+```
+
+### UpdateSchemaAndTruncateTable
+
+Updates the schema and then truncates the table (deletes all rows and resets auto-increment):
+
+```go
+err := entitySchema.UpdateSchemaAndTruncateTable(ctx)
+```
+
+### DropTable
+
+Drops the entire MySQL table:
+
+```go
+err := entitySchema.DropTable(ctx)
+```
+
+### TruncateTable
+
+Truncates the MySQL table (removes all rows):
+
+```go
+err := entitySchema.TruncateTable(ctx)
+```
+
+## Custom Options
+
+You can attach arbitrary key-value options to an entity schema:
+
+```go
+entitySchema.SetOption("myKey", "myValue")
+value := entitySchema.Option("myKey") // returns "myValue"
+```
+
+## Important Notes
+
+- `entitySchema` is used for **introspection and schema management only**. All CRUD operations (create, read, update, delete) are performed through the generated [Provider](/guide/crud.html).
+- Entity schemas are created automatically during `registry.Validate()`. You do not instantiate them directly.
+- For applying schema changes across all entities at once, use the top-level `fluxaorm.GetAlters(ctx)` function described in [Schema Update](/guide/schema_update.html).

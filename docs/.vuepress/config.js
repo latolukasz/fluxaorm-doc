@@ -6,8 +6,8 @@ import { searchPlugin } from '@vuepress/plugin-search'
 
 export default defineUserConfig({
   lang: 'en-US',
-  title: 'FluxaORM: A Golang ORM for MySQL and Redis',
-  description: 'FluxaORM is a Golang ORM designed for high-traffic applications that require optimal performance and scalability. Our ORM allows developers to easily build and maintain applications that can handle large amounts of data and traffic, using the power and simplicity of Golang, along with the reliability and speed of MySQL and Redis (including Redis Search Engine).',
+  title: 'FluxaORM v2: Code-Generation-Based Go ORM for MySQL and Redis',
+  description: 'FluxaORM v2 is a code-generation-based Go ORM for high-traffic applications. Define entities as Go structs, generate type-safe Providers with CRUD methods, getters/setters with dirty tracking, and leverage MySQL, Redis caching, and Redis Search — all with zero reflection at runtime.',
   head: [
     ['link', { rel: 'icon', href: '/favicon.ico' }]
   ],
@@ -35,10 +35,6 @@ export default defineUserConfig({
         text: 'Guide',
         link: '/guide/',
       },
-      {
-        text: 'Plugins',
-        link: '/plugins/',
-      },
     ],
     sidebar: {
       '/guide/': [
@@ -54,8 +50,9 @@ export default defineUserConfig({
             'entities',
             'entity_fields',
             'mysql_indexes',
+            'code_generation',
             'engine',
-            'orm',
+            'context',
             'entity_schema',
             'schema_update',
             'crud',
@@ -70,22 +67,9 @@ export default defineUserConfig({
             'dirty_streams',
             'redis_operations',
             'distributed_lock',
-            'virtual_entities',
             'event_broker',
             'queries_log',
-            'plugins',
-            'log_tables'
-          ]
-        }],
-      '/plugins/': [
-        {
-          title: 'Plugins',
-          children: [
-            {
-              text: 'Introduction',
-              link: '/plugins/'
-            },
-            'modified',
+            'testing'
           ]
         }]
     }

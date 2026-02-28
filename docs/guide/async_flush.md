@@ -1,126 +1,168 @@
-# Async flush
+# Async Flush
 
-In the [previous chapter](/guide/crud.html), you learned how to add, update, and delete entities using the `Flush()` method of the `orm.ORM`. 
-`Flush()` executes both MySQL and cache (Redis, local cache) queries. Redis operations usually take a few milliseconds, and local cache changes are almost instantaneous. 
-However, SQL queries can take a significant amount of time, typically more than 100 milliseconds. In high-traffic applications, SQL queries 
-often become a performance bottleneck.
+In the [previous chapter](/guide/crud.html), you learned how to add, update, and delete entities using the `Flush()` method.
+`Flush()` executes both MySQL and cache (Redis, local cache) queries synchronously. Redis operations usually take a few milliseconds, and local cache changes are almost instantaneous. However, SQL queries can take a significant amount of time, typically more than 100 milliseconds. In high-traffic applications, SQL queries often become a performance bottleneck.
 
-To address this issue, FluxaORM provides a powerful feature that allows you to run all SQL queries asynchronously. 
-All you need to do is use the `FlushAsync()` method instead of `Flush() `and run the `LazyFlashConsumer.Consume()` 
-function in a separate thread or application.
+To address this issue, FluxaORM provides a powerful feature that allows you to run all SQL queries asynchronously. Instead of executing SQL directly against MySQL, `FlushAsync()` publishes the SQL operations to a Redis Stream. Cache updates (Redis and local cache) and Redis Search index updates are applied immediately (optimistic update), so reads see consistent data right away. A separate consumer process then picks up the queued SQL operations and executes them against MySQL.
 
-See the example below:
+## Registering the Async SQL Stream
 
-```go{23}
+Before using `FlushAsync()`, you must register the async SQL stream with a Redis pool. Use `RegisterAsyncSQLStream()` during registry setup:
+
+```go
 package main
 
-import "github.com/latolukasz/fluxaorm"
+import (
+    "context"
 
-type CategoryEntity struct {
-	ID          uint64      `orm:"localCahe;redisCache"`
-	Name        string `orm:"required;length=100"`
-}
+    "github.com/latolukasz/fluxaorm/v2"
+)
 
 func main() {
     registry := fluxaorm.NewRegistry()
-    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", fluxaorm.DefaultPoolCode, nil) 
+    registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", fluxaorm.DefaultPoolCode, nil)
     registry.RegisterRedis("localhost:6379", 0, fluxaorm.DefaultPoolCode, nil)
-    registry.RegisterEntity(CategoryEntity{}) 
+    registry.RegisterAsyncSQLStream(fluxaorm.DefaultPoolCode) // register the async stream on the default Redis pool
+    registry.RegisterEntity(UserEntity{})
     engine, err := registry.Validate()
     if err != nil {
         panic(err)
     }
-    orm := engine.NewContext(context.Background())
-    
-    categoryCars, err := fluxaorm.NewEntity[CategoryEntity](orm)
-    categoryCars.Name = "Cars"
-    err := fluxaorm.FlushAsync()
-}  
+    // ...
+}
 ```
 
-In the example above, the `FlushAsync()` method pushes the `INSERT INTO ...` SQL query into a special Redis list and adds entity data into Redis or local cache.
+::: tip
+If you have a default Redis pool registered and do not call `RegisterAsyncSQLStream()` explicitly, FluxaORM automatically registers the async SQL streams on the default pool during `Validate()`. However, it is recommended to register it explicitly for clarity.
+:::
 
-## Consuming async queries
+## Using FlushAsync
 
-When you use `FlushAsync()` to commit your changes, it's essential to execute the `LazyFlashConsumer.Consume()` function in your application, 
-as demonstrated below:
+Once the stream is registered, use `FlushAsync()` instead of `Flush()` on the context:
 
 ```go
-consumer := fluxaorm.NewLazyFlashConsumer(ctx)
-err := consumer.Consume(time.Second) // blocks and waits 1 second max for new SQL queries to be processed
+ctx := engine.NewContext(context.Background())
+
+user := UserProvider.New(ctx)
+user.SetName("Alice")
+user.SetEmail("alice@example.com")
+
+err := ctx.FlushAsync()
+if err != nil {
+    // handle error
+}
 ```
+
+When `FlushAsync()` is called, the following happens:
+
+1. **Redis cache and search indexes are updated immediately** -- entity data is written to Redis cache and Redis Search hashes right away.
+2. **SQL queries are serialized and published** to the `_fluxa_async_sql` Redis Stream instead of being executed against MySQL.
+3. The entity is marked as flushed and tracking is cleared.
+
+This means that reads using cached lookups (e.g., `GetByID`, `GetByIDs`, `GetByUniqueIndex`) will return updated data immediately, while SQL-based searches will not return updated data until the consumer processes the queued operations.
+
+## Consuming Async Queries
+
+You must run a consumer to process the queued SQL operations. The consumer reads events from the Redis Stream and executes them against MySQL.
+
+Use `ctx.GetAsyncSQLConsumer()` to obtain a consumer:
+
+```go
+ctx := engine.NewContext(context.Background())
+
+consumer, err := ctx.GetAsyncSQLConsumer()
+if err != nil {
+    panic(err)
+}
+
+// Process up to 100 events, blocking for up to 1 second waiting for new events
+for {
+    err = consumer.Consume(100, time.Second)
+    if err != nil {
+        log.Printf("transient error consuming async SQL: %v", err)
+        time.Sleep(time.Second) // back off and retry
+    }
+}
+```
+
+The `Consume(count int, blockTime time.Duration)` method:
+- Reads up to `count` events from the stream.
+- Blocks for up to `blockTime` waiting for new events if none are available.
+- Executes each SQL operation against the appropriate MySQL pool.
+- Acknowledges successfully processed events.
+
+### AutoClaim for Stale Events
+
+If a consumer crashes and leaves events in a pending state, you can use `AutoClaim()` to reclaim and process them:
+
+```go
+// Reclaim events that have been pending for more than 30 seconds
+err = consumer.AutoClaim(100, 30*time.Second)
+```
+
+This is useful for recovering from consumer failures without losing queued operations.
 
 ## Understanding Cache Updates
 
-To ensure smooth operation of your application and prevent unexpected issues, it is crucial to have a solid grasp of how asynchronous cache flushing works in FluxaORM. When you execute the `FlushAsync()` function, FluxaORM updates entity data in the cache. This data is 
-added to both Redis (when the entity uses the `redisCache` tag) and the local cache (when the `localCache` tag is used). SQL queries are executed at a later stage, typically a few milliseconds after the `FlushLazy()` call, thanks to the `consumer.Consume()` function. This is the reason why not all FluxaORM functions that retrieve entities from the database return updated data immediately after the execution of `FlushLazy()`.
+When `FlushAsync()` is called, cache updates happen immediately but SQL execution is deferred. This affects which read operations return updated data before the consumer processes the SQL:
 
-Let's take a closer look at an example to help you understand how this process works:
+**Returns updated data immediately:**
+- `GetByID()` -- when the entity uses `redisCache` or `localCache`
+- `GetByIDs()` -- when the entity uses cache
+- `GetByUniqueIndex()` -- unique indexes are always cached in Redis
 
-```go{2,6}
-type CategoryEntity struct {
-	ID   uint64 `orm:"redisCache"` // utilizes cache
-	Name string `orm:"required;unique=Name"`
+**Does NOT return updated data until consumed:**
+- `Search()`, `SearchOne()`, `SearchIDs()`, `SearchWithCount()`, `SearchIDsWithCount()` -- these query MySQL directly, so they will not see the new data until the consumer has executed the SQL.
+
+::: warning
+Entities without any cache (`redisCache` or `localCache`) will not be available via `GetByID()` or `GetByIDs()` until the consumer processes the SQL operations.
+:::
+
+## Handling Errors
+
+The consumer classifies MySQL errors into two categories:
+
+### Transient Errors
+
+Transient errors are temporary problems that may succeed on retry. When a transient error occurs, `Consume()` returns the error and the event remains in the stream's pending list for reprocessing.
+
+Examples of transient errors:
+- Connection refused or timeout
+- Error 1040: Too many connections
+- Error 1213: Deadlock found when trying to get lock
+- Error 1031: Disk full
+
+When you encounter a transient error, you should log it, wait briefly, and retry:
+
+```go
+err = consumer.Consume(100, time.Second)
+if err != nil {
+    log.Printf("transient error: %v", err)
+    time.Sleep(time.Second)
+    // retry on next loop iteration
 }
-type UserEntity struct {
-	ID   uint64 // no cache
-	Name string `orm:"required;unique=Name"`
-}
-
-category, err := fluxaorm.NewEntity[CategoryEntity](orm) // ID 1
-category.Name = "cars"
-user, err := fluxaorm.NewEntity[UserEntity](orm) // ID 1
-categoryCars.Name = "Tom"
-err = c.FlushAsync()
-
-// The following code is executed in another thread just after the previous code
-// but before consumer.Consume() consumes events:
-
-// Returns valid data because it's saved in Redis
-category, found, err := fluxaorm.GetByID[CategoryEntity](orm, 1)
-categories, err := fluxaorm.GetByIDs[CategoryEntity](orm, 1)
-category, found, err := fluxaorm.GetByUniqueIndex[CategoryEntity](orm, CategoryEntityIndexes.Name, "cars")
-// Returns nil because UserEntity does not use any cache
-user, found, err := fluxaorm.GetByID[UserEntity](orm, 1)
-users, err := fluxaorm.GetByIDs[UserEntity](orm, 1)
-// Returns valid data because unique indexes are always cached in Redis
-user, found, err := fluxaorm.GetByUniqueIndex[UserEntity](orm, CategoryEntityIndexes.Name, "Tom")
-
-// Returns nil because search functions never use cache
-category, found, err = SearchOne[CategoryEntity](orm, fluxaorm.NewWhere("Name = ?", "cars"))
-user, found, err = SearchOne[UserEntity](orm, fluxaorm.NewWhere("Name = ?", "Tom"))
 ```
 
-Below, you'll find a list of functions that return updated entity data when `FlushAsync()` is executed:
+### Permanent Errors (Dead-Letter Stream)
 
-* [GetByID](/guide/crud.html#getting-entity-by-id) when the entity uses cache
-* [GetByIDs](/guide/crud.html#getting-entities-by-id) when the entity uses cache
-* [GetByUniqueIndex](/guide/crud.html#getting-entities-by-unique-key) always
-* [GetAll](/guide/crud.html#getting-all-entities) when the ID field has the `cached` tag
+Permanent errors are problems that will not succeed on retry no matter how many times the query is re-executed. When a permanent error occurs, the event is moved to the dead-letter stream (`_fluxa_async_sql_failed`) and acknowledged from the main stream so it does not block processing.
 
-Please note that all [search functions](/guide/search.html) do not return updated entity data until `consumer.Consume()` processes the SQL queries.
+Examples of permanent errors:
+- Error 1062: Duplicate entry (duplicate key)
+- Error 1146: Table doesn't exist
+- Error 1054: Unknown column
+- Error 1064: Syntax error
+- Error 1406: Data too long for column
+- Error 1048: Column cannot be null
+- Error 1452: Foreign key constraint fails
 
-## Handling Errors in Async Flush Consumption
+The dead-letter stream retains the failed SQL operations along with their error messages. You should monitor this stream and manually resolve the issues:
 
-The `consumer.Consume()` function plays a crucial role in processing SQL queries by reading them from a Redis set and executing them one by one. When an SQL query generates an error, FluxaORM undertakes the task of determining whether the error is temporary or not.
+```go
+// The dead-letter stream name is available as a constant:
+// fluxaorm.AsyncSQLDeadLetterStreamName = "_fluxa_async_sql_failed"
+```
 
-In cases of temporary errors, the `consumer.Consume()` function will panic, and it is the responsibility of the developer to report this error, address the underlying issue, and then re-run `consumer.Consume()`.
+## Multi-Query Transactions
 
-Temporary errors are typically characterized by issues such as:
-
-* Error 1045: Access denied
-* Error 1040: Too many connections
-* Error 1213: Deadlock found when trying to get lock; try restarting the transaction
-* Error 1031: Disk full, waiting for someone to free some space
-
-As seen above, these errors should either be resolved by the developer (e.g., disk full) or re-executed (e.g., deadlock found).
-
-On the other hand, non-temporary errors are skipped, and they are moved to a special Redis stream `fluxaorm.LazyErrorsChannelName`, which retains all problematic SQL queries along with their corresponding errors. Non-temporary errors are typically issues that cannot be fixed by simply re-executing the query. Instead, the developer must manually address and execute these queries and remove them from the list.
-
-Here are examples of non-temporary errors:
-
-* Error 1022: Can't write; duplicate key in table
-* Error 1049: Unknown database
-* Error 1051: Unknown table
-* Error 1054: Unknown column
-* Error 1064: Syntax error
+When a single `FlushAsync()` call produces multiple SQL queries for the same database pool (e.g., inserting an entity and updating related records), those queries are grouped into a single `AsyncSQLOperation`. The consumer executes multiple queries within a database transaction to ensure atomicity. Single-query operations are executed without a transaction for better performance.
