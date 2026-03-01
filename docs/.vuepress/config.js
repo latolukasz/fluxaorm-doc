@@ -64,7 +64,6 @@ export default defineUserConfig({
             'context_cache',
             'fake_delete',
             'metrics',
-            'dirty_streams',
             'redis_operations',
             'distributed_lock',
             'event_broker',
