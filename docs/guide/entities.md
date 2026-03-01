@@ -64,8 +64,7 @@ The workflow is:
 
 After `Generate()` runs, you get a typed Provider and Entity for each registered struct. For example, registering `UserEntity` produces:
 
-- `entities.UserEntityProvider` -- a Provider variable with methods like `New()`, `NewWithFields()`, `GetByID()`, `Search()`, etc.
-- `entities.UserEntityFields` -- a generated Fields struct used with `NewWithFields()` to set initial values at creation time
+- `entities.UserEntityProvider` -- a Provider variable with methods like `New()`, `GetByID()`, `Search()`, etc.
 - `entities.UserEntity` -- a generated Entity type with `GetName()`, `SetName()`, `GetEmail()`, `SetEmail()`, etc.
 
 ## MySQL Pool

@@ -163,7 +163,7 @@ ctx.ClearFlush()
 
 ## Entity Tracking
 
-When you create a new entity via `Provider.New()`, `Provider.NewWithFields()`, or `Provider.NewWithID()`, it is automatically tracked by the Context. When you modify an existing entity (via any setter), it is also automatically tracked. You do not need to manually track entities in normal usage.
+When you create a new entity via `Provider.New()` or `Provider.NewWithID()`, it is automatically tracked by the Context. When you modify an existing entity (via any setter), it is also automatically tracked. You do not need to manually track entities in normal usage.
 
 The `Track()` method is used internally by generated code. Each call to a setter that changes a value will call `Track()` automatically to ensure the entity is included in the next `Flush()`.
 
