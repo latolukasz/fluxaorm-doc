@@ -122,6 +122,10 @@ Choose cache sizes carefully. A cache that is too small will have a low hit rate
 
 ## Redis Pool
 
+::: warning Minimum Version
+FluxaORM requires **Redis 8.2** or later. During `Validate()`, the ORM checks the version of every registered Redis server and returns an error if any server is below 8.2.
+:::
+
 Register a Redis connection using the `RegisterRedis` method. The address argument accepts `host:port` format or a Unix socket path:
 
 ```go

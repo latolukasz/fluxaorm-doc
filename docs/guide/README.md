@@ -131,6 +131,10 @@ For non-critical writes, `ctx.FlushAsync(true)` publishes SQL operations to a Re
 
 FluxaORM includes its own Redis client with support for all standard commands plus additional features like distributed locks and rate limiters. No external Redis client library is needed.
 
+::: warning Requirements
+FluxaORM requires **Redis 8.2** or later. The `Validate()` method will return an error if any registered Redis pool is running an older version.
+:::
+
 ## What's Next
 
 Continue to the [Registry](/guide/registry.html) page to learn how to configure connection pools and register entities, or jump to [Data Pools](/guide/data_pools.html) for details on MySQL, Redis, and local cache pool options.
