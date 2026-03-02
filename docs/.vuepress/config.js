@@ -63,6 +63,7 @@ export default defineUserConfig({
             'local_cache',
             'context_cache',
             'fake_delete',
+            'lifecycle_callbacks',
             'metrics',
             'redis_operations',
             'distributed_lock',

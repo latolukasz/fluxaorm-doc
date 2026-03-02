@@ -286,6 +286,8 @@ err := ctx.Flush()
 
 After a successful flush, tracked entities are cleared from the context. If you need to make further changes, simply modify entities and call `Flush()` again.
 
+See [Lifecycle Callbacks](/guide/lifecycle_callbacks) to register handlers that execute after successful INSERT, UPDATE, or DELETE operations.
+
 ### ClearFlush
 
 If you need to discard all pending operations without executing them, use `ClearFlush()`:

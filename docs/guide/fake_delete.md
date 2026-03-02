@@ -33,6 +33,8 @@ err = ctx.Flush() // UPDATE `UserEntity` SET `FakeDelete` = 1 WHERE `ID` = 3
 
 The `Delete()` method sets the `FakeDelete` field to `true` and tracks the entity for flushing. The entity remains in the database -- it is simply marked as deleted.
 
+When using [Lifecycle Callbacks](/guide/lifecycle_callbacks), a soft delete via `Delete()` triggers the `AfterDelete` callback, not `AfterUpdate`.
+
 ## Permanently Deleting an Entity
 
 Call `ForceDelete()` to permanently remove the entity from the database:
