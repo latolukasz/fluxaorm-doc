@@ -13,9 +13,10 @@ Register a callback that fires after a new entity is successfully inserted:
 ```go
 engine, _ := registry.Validate()
 
-entities.CategoryEntityProvider.OnAfterInsert(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity) {
+entities.CategoryEntityProvider.OnAfterInsert(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity) error {
     // entity has all saved values including auto-set timestamps
     fmt.Printf("Category %d created: %s\n", entity.GetID(), entity.GetName())
+    return nil
 })
 ```
 
@@ -26,12 +27,13 @@ The entity passed to the callback reflects the fully persisted state, including 
 Register a callback that fires after an existing entity is successfully updated:
 
 ```go
-entities.CategoryEntityProvider.OnAfterUpdate(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity, changes map[string]any) {
+entities.CategoryEntityProvider.OnAfterUpdate(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity, changes map[string]any) error {
     // entity getters return NEW values
     // changes["FieldName"] contains the OLD value for each changed field
     for field, oldValue := range changes {
         fmt.Printf("Field %s changed from %v to current value\n", field, oldValue)
     }
+    return nil
 })
 ```
 
@@ -58,13 +60,35 @@ Auto-set timestamp fields (`CreatedAt` and `UpdatedAt`) are excluded from the `c
 Register a callback that fires after an entity is successfully deleted:
 
 ```go
-entities.CategoryEntityProvider.OnAfterDelete(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity) {
+entities.CategoryEntityProvider.OnAfterDelete(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity) error {
     // entity as it was before deletion
     fmt.Printf("Category %d deleted: %s\n", entity.GetID(), entity.GetName())
+    return nil
 })
 ```
 
 The entity passed to the callback represents the state of the entity as it was before deletion.
+
+### Error Propagation
+
+All callback functions return an `error`. If a callback returns a non-nil error, it is propagated back through `Flush()` to the caller. Note that by the time callbacks execute, the database write and Redis cache update have already completed successfully -- the error only affects the return value of `Flush()`.
+
+```go
+entities.CategoryEntityProvider.OnAfterInsert(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity) error {
+    err := publishEvent("category_created", entity.GetID())
+    if err != nil {
+        return fmt.Errorf("failed to publish event: %w", err)
+    }
+    return nil
+})
+
+// Later...
+err := ctx.Flush()
+if err != nil {
+    // Could be a DB error, Redis error, or a callback error
+    log.Error(err)
+}
+```
 
 ## Key Behavior
 
@@ -74,13 +98,15 @@ Only one callback can be registered per event type per entity type. Re-registeri
 
 ```go
 // This callback is overwritten by the one below
-entities.CategoryEntityProvider.OnAfterInsert(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity) {
+entities.CategoryEntityProvider.OnAfterInsert(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity) error {
     fmt.Println("first handler")
+    return nil
 })
 
 // This callback replaces the one above
-entities.CategoryEntityProvider.OnAfterInsert(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity) {
+entities.CategoryEntityProvider.OnAfterInsert(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity) error {
     fmt.Println("second handler") // only this one fires
+    return nil
 })
 ```
 
@@ -97,7 +123,7 @@ When an entity has [Fake Delete](/guide/fake_delete) enabled, calling `entity.De
 Callbacks fire inside the flush mutex. Calling `ctx.Flush()` or `ctx.Track()` on the same context from within a callback will cause a deadlock. If you need to perform additional persistence operations from a callback, create a new context:
 
 ```go
-entities.CategoryEntityProvider.OnAfterInsert(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity) {
+entities.CategoryEntityProvider.OnAfterInsert(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity) error {
     // DO NOT call ctx.Flush() or ctx.Track() here -- deadlock!
 
     // Instead, create a new context for any persistence operations
@@ -105,7 +131,7 @@ entities.CategoryEntityProvider.OnAfterInsert(engine, func(ctx fluxaorm.Context,
     auditLog := entities.AuditLogEntityProvider.New(newCtx)
     auditLog.SetAction("category_created")
     auditLog.SetEntityID(entity.GetID())
-    _ = newCtx.Flush()
+    return newCtx.Flush()
 })
 ```
 
@@ -147,19 +173,22 @@ func main() {
     }
 
     // Register lifecycle callbacks
-    entities.CategoryEntityProvider.OnAfterInsert(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity) {
+    entities.CategoryEntityProvider.OnAfterInsert(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity) error {
         fmt.Printf("INSERT: Category %d created with name %q\n", entity.GetID(), entity.GetName())
+        return nil
     })
 
-    entities.CategoryEntityProvider.OnAfterUpdate(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity, changes map[string]any) {
+    entities.CategoryEntityProvider.OnAfterUpdate(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity, changes map[string]any) error {
         fmt.Printf("UPDATE: Category %d modified\n", entity.GetID())
         for field, oldValue := range changes {
             fmt.Printf("  %s: %v -> (new value via getter)\n", field, oldValue)
         }
+        return nil
     })
 
-    entities.CategoryEntityProvider.OnAfterDelete(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity) {
+    entities.CategoryEntityProvider.OnAfterDelete(engine, func(ctx fluxaorm.Context, entity *entities.CategoryEntity) error {
         fmt.Printf("DELETE: Category %d removed\n", entity.GetID())
+        return nil
     })
 
     // Use the ORM as usual -- callbacks fire automatically on Flush
