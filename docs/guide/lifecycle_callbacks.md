@@ -114,9 +114,20 @@ entities.CategoryEntityProvider.OnAfterInsert(engine, func(ctx fluxaorm.Context,
 
 When an entity has [Fake Delete](/guide/fake_delete) enabled, calling `entity.Delete()` (soft delete) triggers the `AfterDelete` callback, **not** `AfterUpdate`. This is true even though the underlying SQL operation is an UPDATE statement. Similarly, `entity.ForceDelete()` also triggers `AfterDelete`.
 
-### FlushAsync Does Not Fire Callbacks
+### FlushAsync Fires Callbacks in the Consumer
 
-`ctx.FlushAsync()` does **not** fire lifecycle callbacks. Since `FlushAsync()` defers the MySQL write to a background consumer via Redis Streams, the database write has not actually happened at the time the method returns. Callbacks only fire inside `ctx.Flush()`, where the MySQL write and Redis cache update are both confirmed before the callback executes.
+`ctx.FlushAsync()` does **not** fire lifecycle callbacks at the time it is called. Instead, callbacks are fired later by the `AsyncSQLConsumer` after the SQL has been executed against MySQL. This means callbacks always run after the database write has completed, whether synchronously via `Flush()` or asynchronously via `FlushAsync()` + consumer.
+
+When `FlushAsync()` is used, the entity event metadata (entity type, ID, and changes map for updates) is serialized alongside the SQL queries in the Redis Stream. When the consumer processes the event:
+
+1. The SQL is executed against MySQL.
+2. The event is acknowledged (SQL is committed and safe).
+3. The entity is loaded from the database using `GetByID`.
+4. The registered callback is invoked with the loaded entity.
+
+For **hard deletes**, the consumer pre-loads the entity from the database *before* executing the SQL (since the row will be gone after deletion). For **soft deletes** (FakeDelete), the entity is loaded after SQL execution since it still exists in the database.
+
+If a callback returns an error during async consumption, the error is returned by `Consume()`. The SQL has already been committed and the event has been acknowledged, so the SQL will not be re-executed.
 
 ### Avoid Flush and Track Inside Callbacks
 

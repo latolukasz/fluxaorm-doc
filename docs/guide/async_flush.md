@@ -163,6 +163,31 @@ The dead-letter stream retains the failed SQL operations along with their error 
 // fluxaorm.AsyncSQLDeadLetterStreamName = "_fluxa_async_sql_failed"
 ```
 
+## Lifecycle Callbacks
+
+When [lifecycle callbacks](/guide/lifecycle_callbacks) (`OnAfterInsert`, `OnAfterUpdate`, `OnAfterDelete`) are registered for an entity type, they are automatically fired by the `AsyncSQLConsumer` after the SQL has been executed against MySQL. This means callbacks work transparently with both `Flush()` (synchronous) and `FlushAsync()` (asynchronous).
+
+When `FlushAsync()` is called, the entity event metadata (entity type, ID, and changes map for updates) is serialized alongside the SQL queries in the Redis Stream. When the consumer processes the event:
+
+1. For **hard deletes**, the entity is pre-loaded from the database before SQL execution (since the row will be deleted).
+2. The SQL is executed against MySQL.
+3. The event is acknowledged.
+4. For **inserts and updates**, the entity is loaded from the database using `GetByID`.
+5. The registered callback is invoked with the loaded entity.
+
+For **soft deletes** (FakeDelete), the entity is loaded after SQL execution since it still exists in the database with `FakeDelete = true`.
+
+If a callback returns an error, `Consume()` returns that error. The SQL has already been committed and the event acknowledged, so the SQL will not be re-executed. Only the callback side effect is lost.
+
+```go
+// Callbacks work with both Flush() and FlushAsync()
+entities.UserEntityProvider.OnAfterInsert(engine, func(ctx fluxaorm.Context, entity *entities.UserEntity) error {
+    // This fires synchronously during Flush()
+    // and asynchronously during consumer.Consume() for FlushAsync()
+    return publishEvent("user_created", entity.GetID())
+})
+```
+
 ## Multi-Query Transactions
 
 When a single `FlushAsync()` call produces multiple SQL queries for the same database pool (e.g., inserting an entity and updating related records), those queries are grouped into a single `AsyncSQLOperation`. The consumer executes multiple queries within a database transaction to ensure atomicity. Single-query operations are executed without a transaction for better performance.
