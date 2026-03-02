@@ -74,7 +74,7 @@ If `alter.Exec(ctx)` modifies the current index (e.g., adds a new field), the pr
 
 ## Reindexing
 
-FluxaORM automatically updates the Redis Search index when you add, update, or delete an entity via `Flush()` or `FlushAsync()`. However, if your Redis index data was manually removed or MySQL data was manually updated, you can trigger a full reindex using the Provider's `ReindexRedisSearch()` method:
+FluxaORM automatically updates the Redis Search index when you add, update, or delete an entity via `Flush()`, `FlushAsync(true)`, or `FlushAsync(false)`. However, if your Redis index data was manually removed or MySQL data was manually updated, you can trigger a full reindex using the Provider's `ReindexRedisSearch()` method:
 
 ```go
 err := ProductProvider.ReindexRedisSearch(ctx)

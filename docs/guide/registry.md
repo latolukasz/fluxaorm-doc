@@ -128,7 +128,7 @@ Each stream is assigned a consumer group automatically. Streams are used for eve
 
 ### Async SQL Stream
 
-Register the built-in async SQL stream for non-critical writes. This enables `ctx.FlushAsync()` to publish SQL operations to a Redis Stream instead of executing them immediately:
+Register the built-in async SQL stream for non-critical writes. This enables `ctx.FlushAsync(true)` and `ctx.FlushAsync(false)` to publish SQL operations to a Redis Stream instead of executing them immediately:
 
 ```go
 registry.RegisterAsyncSQLStream(fluxaorm.DefaultPoolCode)

@@ -125,7 +125,7 @@ Entities can opt in to [Redis Search](https://redis.io/docs/stack/search/) index
 
 Generated entity setters compare new values against the original database values and only mark changed fields as dirty. When you call `ctx.Flush()`, FluxaORM batches all pending INSERT, UPDATE, and DELETE operations into efficient SQL statements and updates Redis caches in a single pass.
 
-For non-critical writes, `ctx.FlushAsync()` publishes SQL operations to a Redis Stream for asynchronous processing, reducing request latency.
+For non-critical writes, `ctx.FlushAsync(true)` publishes SQL operations to a Redis Stream for asynchronous processing while updating cache immediately, and `ctx.FlushAsync(false)` defers both SQL and cache updates to the consumer.
 
 ## Built-in Redis Client
 

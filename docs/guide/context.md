@@ -64,7 +64,7 @@ type Context interface {
     Flush() error
 
     // Flushes changes asynchronously via Redis Streams
-    FlushAsync() error
+    FlushAsync(immediateRedisUpdates bool) error
 
     // Returns an async SQL consumer for processing queued FlushAsync operations
     GetAsyncSQLConsumer() (AsyncSQLConsumer, error)
@@ -130,10 +130,10 @@ if err != nil {
 
 ### Asynchronous Flush
 
-`FlushAsync()` works similarly to `Flush()`, but instead of executing SQL queries directly against MySQL, it publishes them to a Redis Stream. Redis cache and search indexes are still updated immediately (optimistic update). A separate consumer process retrieves and executes the SQL queries asynchronously.
+`FlushAsync(immediateRedisUpdates)` works similarly to `Flush()`, but instead of executing SQL queries directly against MySQL, it publishes them to a Redis Stream. When `immediateRedisUpdates` is `true`, Redis cache and search indexes are updated immediately (optimistic update). When `false`, all Redis operations are deferred to the consumer alongside the SQL queries. A separate consumer process retrieves and executes the queued operations asynchronously.
 
 ```go
-err := ctx.FlushAsync()
+err := ctx.FlushAsync(true)
 if err != nil {
     // handle error
 }

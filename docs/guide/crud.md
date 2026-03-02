@@ -299,14 +299,16 @@ ctx.ClearFlush() // discards all pending inserts, updates, and deletes
 
 ## FlushAsync
 
-`ctx.FlushAsync()` works like `Flush()` but instead of executing SQL directly against MySQL, it publishes the SQL queries to a Redis Stream for asynchronous processing. Redis cache and search indexes are updated immediately (optimistic update), but the MySQL writes are deferred.
+`ctx.FlushAsync(immediateRedisUpdates)` works like `Flush()` but instead of executing SQL directly against MySQL, it publishes the SQL queries to a Redis Stream for asynchronous processing. Pass `true` to update Redis cache and search indexes immediately (optimistic update), or `false` to defer all cache updates to the consumer alongside the SQL writes.
 
 ```go
 product := entities.ProductEntityProvider.New(ctx)
 product.SetName("Async Product")
 product.SetPrice(29.99)
 
-err := ctx.FlushAsync() // SQL queued to Redis Stream; Redis cache updated immediately
+err := ctx.FlushAsync(true) // SQL queued to Redis Stream; Redis cache updated immediately
+// or
+err = ctx.FlushAsync(false) // both SQL and Redis cache deferred to the consumer
 ```
 
 To process the queued SQL operations, you need to run a consumer:

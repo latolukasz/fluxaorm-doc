@@ -116,9 +116,9 @@ When an entity has [Fake Delete](/guide/fake_delete) enabled, calling `entity.De
 
 ### FlushAsync Fires Callbacks in the Consumer
 
-`ctx.FlushAsync()` does **not** fire lifecycle callbacks at the time it is called. Instead, callbacks are fired later by the `AsyncSQLConsumer` after the SQL has been executed against MySQL. This means callbacks always run after the database write has completed, whether synchronously via `Flush()` or asynchronously via `FlushAsync()` + consumer.
+`ctx.FlushAsync(true)` and `ctx.FlushAsync(false)` do **not** fire lifecycle callbacks at the time they are called. Instead, callbacks are fired later by the `AsyncSQLConsumer` after the SQL has been executed against MySQL. This means callbacks always run after the database write has completed, whether synchronously via `Flush()` or asynchronously via `FlushAsync(true)` / `FlushAsync(false)` + consumer.
 
-When `FlushAsync()` is used, the entity event metadata (entity type, ID, and changes map for updates) is serialized alongside the SQL queries in the Redis Stream. When the consumer processes the event:
+When `FlushAsync(true)` or `FlushAsync(false)` is used, the entity event metadata (entity type, ID, and changes map for updates) is serialized alongside the SQL queries in the Redis Stream. When the consumer processes the event:
 
 1. The SQL is executed against MySQL.
 2. The event is acknowledged (SQL is committed and safe).
