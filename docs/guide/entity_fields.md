@@ -189,11 +189,11 @@ product.SetTitle("Wireless Mouse")
 product.SetDescription("A high-quality wireless mouse...")
 
 title := product.GetTitle()  // returns string (for required fields)
-brand := product.GetBrand()  // returns *string (nil when NULL, for non-required fields)
+brand := product.GetBrand()  // returns string ("" when NULL, for non-required fields)
 ```
 
 ::: tip
-Non-required string fields (without the `orm:"required"` tag) are nullable in MySQL. Their generated getters return `*string`, and empty strings in MySQL are stored as NULL. Add `orm:"required"` when the field should never be NULL -- this saves MySQL storage space and simplifies your code since the getter returns `string` directly.
+Non-required string fields (without the `orm:"required"` tag) are nullable in MySQL. Their generated getters return `string`, and when the value in MySQL is NULL the getter returns an empty string `""`. Empty strings set via the setter are also stored as NULL. Add `orm:"required"` when the field should never be NULL -- this saves MySQL storage space.
 :::
 
 ## Dates and Times

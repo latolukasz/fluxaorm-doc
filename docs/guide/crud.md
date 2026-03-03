@@ -345,24 +345,26 @@ product.SetCategory(newCategoryID)
 
 ### Nullable Fields
 
-For nullable fields (pointer types in the struct definition), getters return pointers:
+For nullable fields (pointer types in the struct definition), getters return pointers — except for nullable strings which return `string` (empty string `""` when NULL):
 
 ```go
 type UserEntity struct {
     ID      uint64  `orm:"redisCache"`
     Name    string  `orm:"required"`
     Age     *uint64 // nullable
-    Comment *string // nullable
+    Comment string  // nullable (no "required" tag)
 }
 
 user, _, _ := entities.UserEntityProvider.GetByID(ctx, 1)
 age := user.GetAge()         // *uint64 (nil if NULL in database)
-comment := user.GetComment() // *string (nil if NULL in database)
+comment := user.GetComment() // string ("" if NULL in database)
 
 // Setting nullable fields
 user.SetAge(nil)           // sets to NULL
 newAge := uint64(30)
 user.SetAge(&newAge)       // sets to 30
+user.SetComment("")        // sets to NULL
+user.SetComment("hello")   // sets to "hello"
 ```
 
 ### Reference Fields
