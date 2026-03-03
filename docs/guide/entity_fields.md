@@ -327,6 +327,29 @@ order.SetPreviousStatus(nil)  // sets to NULL
 
 The `enumName=Status` tag tells the generator to reuse the `Status` enum type for this field instead of creating a separate type.
 
+### Shared Enums Across Entities
+
+When multiple entities share the same enum, you can define the values in only one entity and reference them from others using `orm:"enum;enumName=TypeName"` (without specifying values):
+
+```go
+type OrderEntity struct {
+    ID     uint64
+    Status string `orm:"enum=pending,processing,shipped,delivered;required;enumName=OrderStatus"`
+}
+
+type OrderLogEntity struct {
+    ID     uint64
+    Status string `orm:"enum;enumName=OrderStatus"` // references OrderEntity's definition
+}
+```
+
+The values only need to be defined once. When you add a new value, you only update the defining entity — all referencing entities automatically pick up the change.
+
+Rules:
+- The referenced `enumName` must be defined with values in exactly one entity.
+- Multiple entities may define the same `enumName` with identical values (backward compatible).
+- An `enum` or `set` tag without values **requires** `enumName` to be specified.
+
 ## Sets
 
 Define a set using `orm:"set=value1,value2,value3"`:
@@ -365,6 +388,22 @@ type ProductEntity struct {
 
 ```go
 extra := product.GetExtraTags()  // returns []enums.Tags (nil when empty)
+```
+
+### Shared Sets Across Entities
+
+Like enums, sets can be shared across entities by defining the values once and referencing them:
+
+```go
+type ProductEntity struct {
+    ID   uint64
+    Tags string `orm:"set=sale,featured,new;required;enumName=ProductTags"`
+}
+
+type PromotionEntity struct {
+    ID   uint64
+    Tags string `orm:"set;enumName=ProductTags"` // references ProductEntity's definition
+}
 ```
 
 ## References

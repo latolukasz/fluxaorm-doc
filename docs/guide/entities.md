@@ -253,6 +253,22 @@ type OrderEntity struct {
 }
 ```
 
+You can also share enums **across entities** by defining the values in one entity and referencing them from others:
+
+```go
+type OrderEntity struct {
+    ID     uint64
+    Status string `orm:"enum=pending,processing,shipped,delivered;required;enumName=OrderStatus"`
+}
+
+type OrderLogEntity struct {
+    ID     uint64
+    Status string `orm:"enum;enumName=OrderStatus"` // no values needed — references OrderEntity
+}
+```
+
+This works the same way for sets: `orm:"set;enumName=TypeName"` references a definition from another entity. Values only need to be defined once — when you add a new value, only the defining entity needs to change.
+
 Both fields share the generated `enums.Status` type. The code generator creates enum types in an `enums/` subdirectory with typed constants:
 
 ```go
@@ -377,8 +393,10 @@ All `orm` struct tags available in v2:
 | `unique=Name:N` | Composite unique index with column position N |
 | `cached` | Cache unique index lookups in Redis |
 | `enum=a,b,c` | MySQL ENUM column with specified values |
+| `enum` | Reference a shared enum defined in another entity (requires `enumName`) |
 | `set=a,b,c` | MySQL SET column with specified values |
-| `enumName=TypeName` | Share a generated enum type across fields |
+| `set` | Reference a shared set defined in another entity (requires `enumName`) |
+| `enumName=TypeName` | Share a generated enum type across fields or entities |
 | `time` | Map `time.Time` to `datetime` instead of `date` |
 | `length=N` | Set varchar length (default 255) |
 | `length=max` | Use `mediumtext` instead of varchar |
