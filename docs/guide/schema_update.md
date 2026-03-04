@@ -112,7 +112,7 @@ err = entitySchema.TruncateTable(ctx) // truncates the table
 
 ## Redis Search Index Alterations
 
-If you use Redis Search indexing (via the `redisSearch` and `searchable` struct tags), you can retrieve and apply pending Redis Search index changes with `GetRedisSearchAlters()`:
+If you use Redis Search indexing (via the `searchable` struct tag on entity fields), you can retrieve and apply pending Redis Search index changes with `GetRedisSearchAlters()`:
 
 ```go
 alters, err := fluxaorm.GetRedisSearchAlters(ctx)

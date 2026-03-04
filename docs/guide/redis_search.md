@@ -4,14 +4,11 @@ In the previous section, you learned how to search for entities using MySQL quer
 
 ## Defining the Redis Search Index
 
-By default, entities are not indexed in Redis Search. To enable Redis Search for an entity, you need two things:
-
-1. Add the `redisSearch` tag on the `ID` field, specifying the Redis pool to use for the search index.
-2. Add the `searchable` tag to each field you want to include in the index.
+By default, entities are not indexed in Redis Search. To enable Redis Search for an entity, add the `searchable` tag to each field you want to include in the index. FluxaORM will automatically use the `default` Redis pool for the search index. If you need a different pool, add the `redisSearch=pool` tag on the `ID` field.
 
 ```go
 type ProductEntity struct {
-    ID    uint64  `orm:"redisSearch=default"`
+    ID    uint64
     Name  string  `orm:"required;searchable"`
     Price float64 `orm:"searchable;sortable"`
     Age   uint32  `orm:"searchable;sortable"`
@@ -26,7 +23,7 @@ By default, indexed fields are not sortable. Add the `sortable` tag to make a fi
 
 ```go
 type UserEntity struct {
-    ID        uint64 `orm:"redisSearch=default"`
+    ID        uint64
     Name      string `orm:"required;searchable"`
     Age       uint32 `orm:"searchable;sortable"` // can be used in SortBy()
     CreatedAt time.Time `orm:"searchable"`        // NOT sortable

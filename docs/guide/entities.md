@@ -301,11 +301,11 @@ order.SetTags(enums.StatusList.Sale, enums.StatusList.Featured)
 
 ## Redis Search
 
-To enable full-text and numeric search via Redis Search, add the `orm:"redisSearch"` tag to the `ID` field and mark individual fields as `searchable` and optionally `sortable`:
+To enable full-text and numeric search via Redis Search, mark individual fields as `searchable` and optionally `sortable`. FluxaORM will automatically use the `default` Redis pool. To use a different pool, add `orm:"redisSearch=pool"` on the `ID` field:
 
 ```go
 type ProductEntity struct {
-    ID    uint64  `orm:"redisSearch=default"`
+    ID    uint64
     Name  string  `orm:"required;searchable"`
     Price float64 `orm:"searchable;sortable"`
     Stock uint32  `orm:"searchable;sortable"`
@@ -387,7 +387,7 @@ All `orm` struct tags available in v2:
 | `redisCache` / `redisCache=pool` | Enable Redis entity cache (on `ID` field) |
 | `localCache` / `localCache=size` | Enable local in-memory cache (on `ID` field) |
 | `ttl=seconds` | Redis cache TTL in seconds (on `ID` field) |
-| `redisSearch=pool` | Enable Redis Search indexing (on `ID` field) |
+| `redisSearch=pool` | Override Redis pool for Search indexing (on `ID` field); defaults to `default` when `searchable` fields exist |
 | `required` | NOT NULL in MySQL; for strings, prevents empty default |
 | `unique=Name` | Declare a unique index column |
 | `unique=Name:N` | Composite unique index with column position N |
