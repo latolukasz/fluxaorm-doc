@@ -141,6 +141,26 @@ func (p userProvider) GetByID(ctx fluxaorm.Context, id uint64) (entity *UserEnti
 
 The method checks the context cache first, then Redis cache (if configured), and falls back to MySQL.
 
+#### MustGetByID
+
+A convenience wrapper around `GetByID` that panics if the entity is not found. The `bool` return value is removed; errors are still returned normally.
+
+```go
+user, err := entities.UserProvider.MustGetByID(ctx, 42)
+if err != nil {
+    return err
+}
+// No need to check "found" -- panics if user with ID 42 does not exist
+fmt.Println(user.GetName())
+```
+
+**Signature:**
+```go
+func (p userProvider) MustGetByID(ctx fluxaorm.Context, id uint64) (entity *UserEntity, err error)
+```
+
+Use `MustGetByID` when a missing entity indicates a programming error or data inconsistency. It calls `GetByID` internally and panics with a descriptive message if the entity is not found.
+
 #### GetByIDs
 
 Fetches multiple entities by their primary keys. Returns a slice containing only the found entities (missing IDs are silently skipped), preserving the order of the input IDs.
@@ -374,7 +394,12 @@ func (e *ProductEntity) SetCategory(value uint64)
 
 // Loads the referenced entity (calls GetByID on the referenced Provider)
 func (e *ProductEntity) GetCategory(ctx fluxaorm.Context) (*CategoryEntity, bool, error)
+
+// Loads the referenced entity, panics if not found
+func (e *ProductEntity) MustGetCategory(ctx fluxaorm.Context) (*CategoryEntity, error)
 ```
+
+The `MustGet<Reference>` method is a convenience wrapper around `Get<Reference>`. It removes the `bool` return value and panics if the referenced entity is not found. Errors are still returned normally. This works the same way for both required and optional references.
 
 For optional (non-required) references, the ID getter returns `*uint64` instead of `uint64`.
 

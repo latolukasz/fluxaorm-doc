@@ -123,6 +123,21 @@ The return signature is `(*XxxEntity, bool, error)`. The boolean indicates wheth
 
 `GetByID()` automatically uses the three-tier cache (context cache, Redis cache, MySQL) when available.
 
+### MustGetByID
+
+`MustGetByID()` is a convenience wrapper around `GetByID()` for cases where you expect the entity to exist. It removes the `bool` return value and **panics** if the entity is not found. Errors are still returned normally.
+
+```go
+product, err := entities.ProductEntityProvider.MustGetByID(ctx, 12345)
+if err != nil {
+    // handle error
+}
+// No need to check "found" -- panics if entity does not exist
+fmt.Println(product.GetName())
+```
+
+The return signature is `(*XxxEntity, error)`. Use `MustGetByID()` when a missing entity indicates a programming error or data inconsistency that should not be silently ignored.
+
 ### GetByIDs
 
 To retrieve multiple entities by their IDs, use `GetByIDs()`:
@@ -378,3 +393,12 @@ categoryID := product.GetCategoryID() // uint64
 // Load the referenced entity (performs a GetByID on the referenced Provider)
 category, found, err := product.GetCategory(ctx)
 ```
+
+For each reference field, a `MustGet<Reference>` convenience method is also generated. It panics if the referenced entity is not found, removing the `bool` return value:
+
+```go
+// Panics if the referenced category does not exist
+category, err := product.MustGetCategory(ctx)
+```
+
+This works the same way for both required and optional references. Use `MustGet<Reference>` when you expect the referenced entity to always exist (e.g., a required foreign key that should never point to a missing row).
