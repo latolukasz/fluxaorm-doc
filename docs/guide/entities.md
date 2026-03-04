@@ -225,7 +225,7 @@ type ProductEntity struct {
 }
 ```
 
-For an optional reference, the getter returns `*uint64`: `entity.GetCategoryID()` returns `nil` when no reference is set.
+For an optional reference, the getter returns `uint64`: `entity.GetCategoryID()` returns `0` when no reference is set.
 
 ## Enums and Sets
 

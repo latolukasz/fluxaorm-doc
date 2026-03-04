@@ -146,7 +146,7 @@ The generated `GetByIndex<Name>()` methods use widened Go types for their parame
 | enum field | enums.EnumType |
 | Reference (required) | uint64 |
 | *uint, *int, etc. | *uint64, *int64, etc. |
-| Reference (optional) | *uint64 |
+| Reference (optional) | uint64 |
 
 ## Complete Example
 

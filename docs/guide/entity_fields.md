@@ -369,6 +369,22 @@ type OrderLogEntity struct {
 
 The values only need to be defined once. When you add a new value, you only update the defining entity — all referencing entities automatically pick up the change.
 
+You can also use the shorthand `enumName=X` without specifying `enum` at all:
+
+```go
+type OrderEntity struct {
+    ID     uint64
+    Status string `orm:"enum=pending,processing,shipped,delivered;required;enumName=OrderStatus"`
+}
+
+type AuditLogEntity struct {
+    ID             uint64
+    PreviousStatus string `orm:"enumName=OrderStatus"`
+}
+```
+
+Both `orm:"enum;enumName=OrderStatus"` and `orm:"enumName=OrderStatus"` are equivalent — they reference the shared enum without redefining its values.
+
 Rules:
 - The referenced `enumName` must be defined with values in exactly one entity.
 - Multiple entities may define the same `enumName` with identical values (backward compatible).
@@ -430,6 +446,8 @@ type PromotionEntity struct {
 }
 ```
 
+As with enums, you can also use the shorthand `orm:"enumName=ProductTags"` without the `set` tag to reference a shared set as an enum field.
+
 ## References
 
 Use `fluxaorm.Reference[T]` to create a foreign key relationship to another entity:
@@ -461,9 +479,9 @@ product := entities.ProductEntityProvider.New(ctx)
 product.SetCategory(categoryID)
 catID := product.GetCategoryID()  // returns uint64
 
-// Optional reference: getter returns *uint64, setter accepts uint64 (0 to clear)
+// Optional reference: getter returns uint64 (0 when NULL), setter accepts uint64 (0 to clear)
 product.SetBrand(brandID)
-brandID := product.GetBrandID()  // returns *uint64 (nil when NULL)
+brandID := product.GetBrandID()  // returns uint64 (0 when NULL)
 product.SetBrand(0)              // sets to NULL
 ```
 

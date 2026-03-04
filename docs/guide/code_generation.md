@@ -401,7 +401,7 @@ func (e *ProductEntity) MustGetCategory(ctx fluxaorm.Context) (*CategoryEntity, 
 
 The `MustGet<Reference>` method is a convenience wrapper around `Get<Reference>`. It removes the `bool` return value and panics if the referenced entity is not found. Errors are still returned normally. This works the same way for both required and optional references.
 
-For optional (non-required) references, the ID getter returns `*uint64` instead of `uint64`.
+For optional (non-required) references, the ID getter also returns `uint64`, with `0` representing NULL (no reference set). The setter accepts `uint64` and treats `0` as NULL.
 
 ## Generated SQLRow
 
