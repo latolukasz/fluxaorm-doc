@@ -294,6 +294,30 @@ var StatusList = struct {
 }
 ```
 
+Each enum also gets a `Valid() bool` method that checks if a value is one of the defined constants:
+
+```go
+func (e Status) Valid() bool {
+    switch e {
+    case "pending", "processing", "shipped", "delivered":
+        return true
+    }
+    return false
+}
+```
+
+### Validating Enum Values
+
+Use `Valid()` to check whether an enum value is legitimate:
+
+```go
+status := enums.StatusList.Pending
+status.Valid() // true
+
+invalid := enums.Status("unknown")
+invalid.Valid() // false
+```
+
 After generation, use the typed constants:
 
 ```go
