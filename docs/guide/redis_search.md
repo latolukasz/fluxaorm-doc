@@ -96,18 +96,54 @@ An empty `RedisSearchWhere` matches all documents (equivalent to `*` in Redis Se
 
 ### Numeric Conditions
 
+There are separate typed methods for `uint64`, `int64`, and `float64` values. Use the variant that matches your field's Go type:
+
+**Uint64 methods** (for `uint`, `uint8`, `uint16`, `uint32`, `uint64` fields):
+
 ```go
 // Exact match: Age = 25
-where := fluxaorm.NewRedisSearchWhere().NumericEqual("Age", 25)
+where := fluxaorm.NewRedisSearchWhere().Uint64Equal("Age", 25)
 
 // Range: Age between 18 and 65
-where = fluxaorm.NewRedisSearchWhere().NumericRange("Age", 18, 65)
+where = fluxaorm.NewRedisSearchWhere().Uint64Range("Age", 18, 65)
 
 // Minimum: Age >= 18
-where = fluxaorm.NewRedisSearchWhere().NumericMin("Age", 18)
+where = fluxaorm.NewRedisSearchWhere().Uint64Min("Age", 18)
+
+// Maximum: Age <= 100
+where = fluxaorm.NewRedisSearchWhere().Uint64Max("Age", 100)
+```
+
+**Int64 methods** (for `int`, `int8`, `int16`, `int32`, `int64` fields):
+
+```go
+// Exact match: Balance = -50
+where := fluxaorm.NewRedisSearchWhere().Int64Equal("Balance", -50)
+
+// Range: Balance between -100 and 100
+where = fluxaorm.NewRedisSearchWhere().Int64Range("Balance", -100, 100)
+
+// Minimum: Balance >= 0
+where = fluxaorm.NewRedisSearchWhere().Int64Min("Balance", 0)
+
+// Maximum: Balance <= 1000
+where = fluxaorm.NewRedisSearchWhere().Int64Max("Balance", 1000)
+```
+
+**Float64 methods** (for `float32`, `float64` fields):
+
+```go
+// Exact match: Score = 9.5
+where := fluxaorm.NewRedisSearchWhere().Float64Equal("Score", 9.5)
+
+// Range: Price between 10.50 and 99.99
+where = fluxaorm.NewRedisSearchWhere().Float64Range("Price", 10.50, 99.99)
+
+// Minimum: Price >= 5.0
+where = fluxaorm.NewRedisSearchWhere().Float64Min("Price", 5.0)
 
 // Maximum: Price <= 99.99
-where = fluxaorm.NewRedisSearchWhere().NumericMax("Price", 99.99)
+where = fluxaorm.NewRedisSearchWhere().Float64Max("Price", 99.99)
 ```
 
 ### Tag Conditions
@@ -147,9 +183,9 @@ Multiple conditions are combined with AND logic (space-separated in Redis Search
 
 ```go
 where := fluxaorm.NewRedisSearchWhere().
-    NumericMin("Age", 18).
+    Uint64Min("Age", 18).
     Tag("Status", "active").
-    NumericMax("Price", 100)
+    Float64Max("Price", 100)
 ```
 
 ### Sorting
@@ -159,7 +195,7 @@ Use `SortBy()` to sort results by a sortable field:
 ```go
 // Sort by Age ascending
 where := fluxaorm.NewRedisSearchWhere().
-    NumericMin("Age", 18).
+    Uint64Min("Age", 18).
     SortBy("Age", true)
 
 // Sort by Price descending
@@ -180,7 +216,7 @@ Use the `SearchInRedis()` method on the Provider to find entities using the Redi
 import "github.com/latolukasz/fluxaorm/v2"
 
 where := fluxaorm.NewRedisSearchWhere().
-    NumericMin("Age", 18).
+    Uint64Min("Age", 18).
     SortBy("Age", true)
 
 products, err := ProductProvider.SearchInRedis(ctx, where, fluxaorm.NewPager(1, 100))
@@ -225,7 +261,7 @@ func (p XxxProvider) SearchInRedisWithCount(ctx fluxaorm.Context, where *fluxaor
 Use `SearchOneInRedis()` to retrieve a single matching entity:
 
 ```go
-product, found, err := ProductProvider.SearchOneInRedis(ctx, fluxaorm.NewRedisSearchWhere().NumericEqual("Age", 25))
+product, found, err := ProductProvider.SearchOneInRedis(ctx, fluxaorm.NewRedisSearchWhere().Uint64Equal("Age", 25))
 if err != nil {
     // handle error
 }
@@ -250,7 +286,7 @@ func (p XxxProvider) SearchOneInRedis(ctx fluxaorm.Context, where *fluxaorm.Redi
 If you only need entity IDs, use `SearchIDsInRedis()`:
 
 ```go
-ids, err := ProductProvider.SearchIDsInRedis(ctx, fluxaorm.NewRedisSearchWhere().NumericMin("Price", 50), nil)
+ids, err := ProductProvider.SearchIDsInRedis(ctx, fluxaorm.NewRedisSearchWhere().Float64Min("Price", 50), nil)
 if err != nil {
     // handle error
 }
@@ -293,10 +329,18 @@ func (p XxxProvider) SearchIDsInRedisWithCount(ctx fluxaorm.Context, where *flux
 
 | Method | Description |
 |--------|-------------|
-| `NumericEqual(field, value)` | Exact numeric match |
-| `NumericRange(field, min, max)` | Numeric range (inclusive) |
-| `NumericMin(field, min)` | Greater than or equal to |
-| `NumericMax(field, max)` | Less than or equal to |
+| `Uint64Equal(field, value)` | Exact match (unsigned integers) |
+| `Uint64Range(field, min, max)` | Range, inclusive (unsigned integers) |
+| `Uint64Min(field, min)` | Greater than or equal to (unsigned integers) |
+| `Uint64Max(field, max)` | Less than or equal to (unsigned integers) |
+| `Int64Equal(field, value)` | Exact match (signed integers) |
+| `Int64Range(field, min, max)` | Range, inclusive (signed integers) |
+| `Int64Min(field, min)` | Greater than or equal to (signed integers) |
+| `Int64Max(field, max)` | Less than or equal to (signed integers) |
+| `Float64Equal(field, value)` | Exact match (floats) |
+| `Float64Range(field, min, max)` | Range, inclusive (floats) |
+| `Float64Min(field, min)` | Greater than or equal to (floats) |
+| `Float64Max(field, max)` | Less than or equal to (floats) |
 | `Tag(field, values...)` | Exact tag match (OR for multiple values) |
 | `Text(field, query)` | Full-text search |
 | `Bool(field, value)` | Boolean match |
