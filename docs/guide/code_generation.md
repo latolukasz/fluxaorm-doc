@@ -317,6 +317,70 @@ If an entity has Redis Search configured, additional methods are generated:
 
 These methods use `*fluxaorm.RedisSearchWhere` instead of `fluxaorm.Where`.
 
+### Provider Interfaces
+
+All generated Providers implement the `fluxaorm.EntityProvider` interface, which exposes common metadata:
+
+```go
+type EntityProvider interface {
+    TableName() string
+    DBCode() string
+}
+```
+
+Providers with Redis caching (`redisCache` tag) additionally implement `fluxaorm.RedisCacheEntityProvider`:
+
+```go
+type RedisCacheEntityProvider interface {
+    RedisCode() string
+    RedisCachePrefix() string
+}
+```
+
+Providers with Redis Search indexing additionally implement `fluxaorm.RedisSearchEntityProvider`:
+
+```go
+type RedisSearchEntityProvider interface {
+    ReindexRedisSearch(ctx Context) error
+    RedisSearchCode() string
+    RedisSearchIndexName() string
+    RedisSearchHashPrefix() string
+}
+```
+
+These interfaces are independent (they do not embed each other). Use type assertions to check capabilities at runtime:
+
+```go
+for _, p := range entities.AllProviders {
+    fmt.Println("Table:", p.TableName(), "DB:", p.DBCode())
+
+    if rp, ok := p.(fluxaorm.RedisCacheEntityProvider); ok {
+        fmt.Println("  Redis cache prefix:", rp.RedisCachePrefix())
+    }
+    if sp, ok := p.(fluxaorm.RedisSearchEntityProvider); ok {
+        fmt.Println("  Redis search index:", sp.RedisSearchIndexName())
+    }
+}
+```
+
+::: tip
+Entities with `cached` unique indexes but **without** `redisCache` do **not** implement `RedisCacheEntityProvider`. The Redis cache interface is only for entities that have the full entity-level Redis cache enabled.
+:::
+
+### AllProviders Registry
+
+The generator also produces a `providers.go` file containing an `AllProviders` variable -- a slice of all generated providers typed as `fluxaorm.EntityProvider`:
+
+```go
+var AllProviders = []fluxaorm.EntityProvider{
+    &UserProvider,
+    &ProductProvider,
+    &CategoryProvider,
+}
+```
+
+The providers are sorted alphabetically by table name for deterministic output. Use `AllProviders` to iterate over all entity providers at runtime for tasks like health checks, migrations, or building admin interfaces.
+
 ## Generated Entity
 
 For each registered entity, the generator creates an **Entity struct** that wraps the raw database data with context awareness and dirty tracking.
