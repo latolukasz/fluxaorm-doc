@@ -113,6 +113,16 @@ removedKeys, err := entitySchema.ClearCache(ctx)
 If the entity has millions of records in Redis, clearing cache can take some time because Redis scans all keys.
 :::
 
+### ClearRedisCache (Provider Method)
+
+If your entity has a Redis cache (`redisCache` tag), the generated Provider also exposes a `ClearRedisCache` method as a convenient alternative to accessing the entity schema directly. It uses a Lua SCAN+UNLINK script to delete all Redis cache keys for the entity and returns the count of deleted keys:
+
+```go
+removed, err := entities.UserProvider.ClearRedisCache(ctx)
+```
+
+This method is part of the `fluxaorm.RedisCacheEntityProvider` interface that all Redis-cached entity providers implement. See [Provider Interfaces](/guide/code_generation.html#provider-interfaces) for details.
+
 ## Schema Management
 
 ### GetSchemaChanges

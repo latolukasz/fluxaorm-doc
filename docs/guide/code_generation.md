@@ -334,6 +334,7 @@ Providers with Redis caching (`redisCache` tag) additionally implement `fluxaorm
 type RedisCacheEntityProvider interface {
     RedisCode() string
     RedisCachePrefix() string
+    ClearRedisCache(ctx Context) (int, error)
 }
 ```
 
