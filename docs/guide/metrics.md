@@ -180,6 +180,52 @@ fluxaorm_clickhouse_queries_errors{pool="analytics",source="default"} 123
 | `pool` | pool code string | The ClickHouse pool code |
 | `source` | source string | Metrics source tag |
 
+## Kafka Metrics
+
+### `fluxaorm_kafka_operations_seconds` (Histogram)
+
+Tracks the duration of all Kafka operations.
+
+```
+# HELP Total number of Kafka operations executed
+# TYPE fluxaorm_kafka_operations_seconds histogram
+fluxaorm_kafka_operations_seconds{le="0.005",operation="produce",pool="events",source="default"} 100
+...
+fluxaorm_kafka_operations_seconds_sum{operation="produce",pool="events",source="default"} 12.345
+fluxaorm_kafka_operations_seconds_count{operation="produce",pool="events",source="default"} 500
+```
+
+**Labels:**
+
+| Label | Values | Description |
+|-------|--------|-------------|
+| `operation` | `produce`, `produce_async`, `poll`, `commit` | Type of Kafka operation |
+| `pool` | pool code string | The Kafka pool code (e.g. `"events"`) |
+| `source` | source string | Metrics source tag (default: `"default"`) |
+
+The `operation` label values:
+- `produce` -- synchronous produce via `ProduceSync`
+- `produce_async` -- asynchronous produce via `Produce`
+- `poll` -- polling records via `PollFetches`
+- `commit` -- committing offsets via `CommitUncommittedOffsets`
+
+### `fluxaorm_kafka_operations_errors` (Counter)
+
+Counts the total number of Kafka operation errors.
+
+```
+# HELP Total number of Kafka operations errors
+# TYPE fluxaorm_kafka_operations_errors counter
+fluxaorm_kafka_operations_errors{pool="events",source="default"} 123
+```
+
+**Labels:**
+
+| Label | Values | Description |
+|-------|--------|-------------|
+| `pool` | pool code string | The Kafka pool code |
+| `source` | source string | Metrics source tag |
+
 ## Changing the Metrics Source
 
 Every metric includes a `source` label. By default it is set to `"default"`.
@@ -206,3 +252,5 @@ fluxaorm_db_queries_seconds{le="0.005",operation="exec",pool="default",source="m
 | `fluxaorm_redis_queries_errors` | Counter | `pool`, `source` | Count of Redis query errors |
 | `fluxaorm_clickhouse_queries_seconds` | Histogram | `operation`, `pool`, `source` | Duration of ClickHouse queries |
 | `fluxaorm_clickhouse_queries_errors` | Counter | `pool`, `source` | Count of ClickHouse query errors |
+| `fluxaorm_kafka_operations_seconds` | Histogram | `operation`, `pool`, `source` | Duration of Kafka operations |
+| `fluxaorm_kafka_operations_errors` | Counter | `pool`, `source` | Count of Kafka operation errors |

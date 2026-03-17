@@ -1,6 +1,6 @@
 # Data Pools
 
-This page covers the details of configuring MySQL, Redis, and local cache connection pools in FluxaORM.
+This page covers the details of configuring MySQL, Redis, Kafka, and local cache connection pools in FluxaORM.
 
 Each connection pool requires a unique name (code) that identifies it throughout your application. Use `fluxaorm.DefaultPoolCode` (the string `"default"`) for your primary pools.
 
@@ -185,6 +185,39 @@ analytics:
       - legacy_events
       - temp_imports
 ```
+
+## Kafka Pool
+
+FluxaORM supports Apache Kafka as a data pool type, powered by [franz-go](https://github.com/twmb/franz-go). Register a Kafka pool using the `RegisterKafka` method:
+
+```go
+import "github.com/latolukasz/fluxaorm/v2"
+
+registry := fluxaorm.NewRegistry()
+
+registry.RegisterKafka([]string{"localhost:9092", "localhost:9093"}, "events", &fluxaorm.KafkaOptions{
+    ClientID:      "my-service",
+    ConsumerGroup: "my-group",
+    ConsumeTopics: []string{"orders", "payments"},
+})
+```
+
+Equivalent YAML configuration:
+
+```yml
+events:
+  kafka:
+    brokers:
+      - localhost:9092
+      - localhost:9093
+    clientID: my-service
+    consumerGroup: my-group
+    consumeTopics:
+      - orders
+      - payments
+```
+
+For the full list of options, SASL authentication, producing and consuming records, see the dedicated [Kafka](/guide/kafka.html) page.
 
 ## Redis Pool
 

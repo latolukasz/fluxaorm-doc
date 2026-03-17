@@ -62,6 +62,7 @@ export default defineUserConfig({
             'mysql_queries',
             'clickhouse_queries',
             'clickhouse_schema',
+            'kafka',
             'local_cache',
             'context_cache',
             'fake_delete',

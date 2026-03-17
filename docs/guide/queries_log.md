@@ -1,6 +1,6 @@
 # Queries Log
 
-You can log all MySQL, Redis, and local cache queries by registering a log handler on a `fluxaorm.Context`:
+You can log all MySQL, Redis, local cache, and Kafka queries by registering a log handler on a `fluxaorm.Context`:
 
 ```go
 import "github.com/latolukasz/fluxaorm/v2"
@@ -11,7 +11,7 @@ func (l *MyLogger) Handle(ctx fluxaorm.Context, log map[string]any) {
     fmt.Printf("QUERY %s in %s\n", log["query"], log["source"])
 }
 
-ctx.RegisterQueryLogger(&MyLogger{}, fluxaorm.QueryLoggerOptions{MySQL: true, Redis: true, Local: true, Clickhouse: true})
+ctx.RegisterQueryLogger(&MyLogger{}, fluxaorm.QueryLoggerOptions{MySQL: true, Redis: true, Local: true, Clickhouse: true, Kafka: true})
 ```
 
 This method requires an implementation of the `fluxaorm.LogHandler` interface:
@@ -30,7 +30,7 @@ The `log` map provides the following fields:
 
 | Key | Value Type | Description |
 |:-------------|:-------------|:------|
-| `source` | `string` | `mysql`, `redis`, `local_cache`, or `clickhouse` |
+| `source` | `string` | `mysql`, `redis`, `local_cache`, `clickhouse`, or `kafka` |
 | `pool` | `string` | [Data pool](/guide/data_pools.html) name |
 | `query` | `string` | Full query string |
 | `operation` | `string` | Short label describing the operation |
@@ -60,6 +60,9 @@ ctx.RegisterQueryLogger(&MyLogger{}, fluxaorm.QueryLoggerOptions{Local: true})
 // Log only ClickHouse queries
 ctx.RegisterQueryLogger(&MyLogger{}, fluxaorm.QueryLoggerOptions{Clickhouse: true})
 
+// Log only Kafka queries
+ctx.RegisterQueryLogger(&MyLogger{}, fluxaorm.QueryLoggerOptions{Kafka: true})
+
 // Log MySQL and Redis queries
 ctx.RegisterQueryLogger(&MyLogger{}, fluxaorm.QueryLoggerOptions{MySQL: true, Redis: true})
 ```
@@ -69,7 +72,7 @@ ctx.RegisterQueryLogger(&MyLogger{}, fluxaorm.QueryLoggerOptions{MySQL: true, Re
 FluxaORM includes a built-in colored console logger that you can enable for quick debugging:
 
 ```go
-// Enable debug logging for all sources (MySQL, Redis, local cache, ClickHouse)
+// Enable debug logging for all sources (MySQL, Redis, local cache, ClickHouse, Kafka)
 ctx.EnableQueryDebug()
 
 // Enable debug logging for specific sources
