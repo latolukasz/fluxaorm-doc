@@ -71,7 +71,11 @@ If `alter.Exec(ctx)` modifies the current index (e.g., adds a new field), the pr
 
 ## Reindexing
 
-FluxaORM automatically updates the Redis Search index when you add, update, or delete an entity via `Flush()`, `FlushAsync(true)`, or `FlushAsync(false)`. However, if your Redis index data was manually removed or MySQL data was manually updated, you can trigger a full reindex using the Provider's `ReindexRedisSearch()` method:
+FluxaORM automatically updates the Redis Search index when you add, update, or delete an entity via `Flush()`, `FlushAsync(true)`, or `FlushAsync(false)`. When an entity is **updated**, only the fields that actually changed are written to the Redis hash via `HSET` — unchanged fields are left untouched. Nullable fields that become `NULL` are removed from the hash via `HDEL`. This partial update approach is more efficient than rebuilding the entire hash on every edit.
+
+Full hash rebuilds (delete + recreate) only occur during insert, delete, un-delete (restoring a fake-deleted entity), index schema changes via `GetRedisSearchAlters()`, or manual reindex.
+
+If your Redis index data was manually removed or MySQL data was manually updated, you can trigger a full reindex using the Provider's `ReindexRedisSearch()` method:
 
 ```go
 err := ProductProvider.ReindexRedisSearch(ctx)

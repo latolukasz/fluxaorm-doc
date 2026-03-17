@@ -148,6 +148,10 @@ The generated `GetByIndex<Name>()` methods use widened Go types for their parame
 | *uint, *int, etc. | *uint64, *int64, etc. |
 | Reference (optional) | uint64 |
 
+::: tip Time Truncation
+When a unique index includes a `time.Time` column, the generated `GetByIndex<Name>()` method automatically truncates the parameter before querying. DateTime fields (tagged with `orm:"time"`, or the built-in `CreatedAt`/`UpdatedAt` columns) are truncated to second precision. Date fields are truncated to day precision. This matches the truncation applied by setter methods, ensuring lookups always find the stored row regardless of sub-second or sub-day precision in the input value.
+:::
+
 ## Complete Example
 
 Here is a complete example showing entities with various index configurations:

@@ -71,6 +71,9 @@ type Engine interface {
     // Returns a MySQL connection pool by its registered code
     DB(code string) DB
 
+    // Returns a ClickHouse connection pool by its registered code
+    Clickhouse(code string) Clickhouse
+
     // Returns a local in-memory cache pool by its registered code
     LocalCache(code string) LocalCache
 
@@ -121,6 +124,11 @@ func main() {
     for code, localCache := range engine.Registry().LocalCachePools() {
         fmt.Println("Local cache pool:", code)
     }
+
+    // Returns all ClickHouse pools
+    for code, ch := range engine.Registry().ClickhousePools() {
+        fmt.Println("ClickHouse pool:", code)
+    }
 }
 ```
 
@@ -130,6 +138,9 @@ The `EngineRegistry` interface provides:
 type EngineRegistry interface {
     // Returns all registered MySQL connection pools
     DBPools() map[string]DB
+
+    // Returns all registered ClickHouse connection pools
+    ClickhousePools() map[string]Clickhouse
 
     // Returns all registered local cache pools
     LocalCachePools() map[string]LocalCache
@@ -148,6 +159,14 @@ To retrieve a MySQL pool by its registered code, use the `DB()` method:
 
 ```go
 db := engine.DB(fluxaorm.DefaultPoolCode)
+```
+
+## Getting a ClickHouse Pool
+
+To retrieve a ClickHouse pool by its registered code, use the `Clickhouse()` method:
+
+```go
+ch := engine.Clickhouse("analytics")
 ```
 
 ## Getting a Redis Pool

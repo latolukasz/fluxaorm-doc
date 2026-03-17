@@ -16,6 +16,7 @@ func main() {
     registry.RegisterMySQL("root:root@tcp(localhost:3306)/app", fluxaorm.DefaultPoolCode, nil)
     registry.RegisterRedis("localhost:6379", 0, fluxaorm.DefaultPoolCode, nil)
     registry.RegisterLocalCache(fluxaorm.DefaultPoolCode, 100000)
+    registry.RegisterClickhouse("clickhouse://localhost:9000/default", "analytics", nil)
 
     // Register entities
     registry.RegisterEntity(&UserEntity{}, &ProductEntity{}, &CategoryEntity{})
@@ -113,6 +114,17 @@ registry.RegisterLocalCache(fluxaorm.DefaultPoolCode, 100000)
 registry.RegisterLocalCache("static_data", 0)
 ```
 
+### ClickHouse
+
+```go
+registry.RegisterClickhouse("clickhouse://localhost:9000/default", "analytics", nil)
+registry.RegisterClickhouse("clickhouse://localhost:9000/logs", "ch_logs", &fluxaorm.ClickhouseOptions{
+    MaxOpenConnections: 20,
+})
+```
+
+See [Data Pools](/guide/data_pools.html) for all `ClickhouseOptions` fields.
+
 ## Registering Streams
 
 ### Redis Streams
@@ -153,7 +165,7 @@ if err != nil {
 
 `Validate()` performs the following:
 
-- Connects to all MySQL pools and configures connection limits based on server settings
+- Connects to all MySQL and ClickHouse pools and configures connection limits
 - Connects to all Redis pools
 - Parses entity struct tags and builds schema metadata
 - Resolves entity references and indexes
@@ -211,6 +223,9 @@ config := &fluxaorm.Config{
     LocalCachePools: []fluxaorm.ConfigLocalCache{
         {Code: "default", Limit: 100000},
     },
+    ClickhousePools: []fluxaorm.ConfigClickhouse{
+        {Code: "analytics", URI: "clickhouse://localhost:9000/default"},
+    },
 }
 
 err := registry.InitByConfig(config)
@@ -227,6 +242,7 @@ type Config struct {
     RedisPools         []ConfigRedis
     RedisSentinelPools []ConfigRedisSentinel
     LocalCachePools    []ConfigLocalCache
+    ClickhousePools    []ConfigClickhouse
 }
 
 type ConfigMysql struct {
@@ -262,6 +278,14 @@ type ConfigRedisSentinel struct {
 type ConfigLocalCache struct {
     Code  string // required — pool name
     Limit int    // required — max number of cached entries (0 = unlimited)
+}
+
+type ConfigClickhouse struct {
+    Code               string // required — pool name
+    URI                string // required — ClickHouse DSN
+    ConnMaxLifetime    int    // seconds
+    MaxOpenConnections int
+    MaxIdleConnections int
 }
 ```
 
@@ -321,6 +345,9 @@ cluster:
       - :26379
       - 192.168.1.2:26379
       - 192.168.1.3:26379
+analytics:
+  clickhouse:
+    uri: clickhouse://localhost:9000/default
 ```
 
 Each top-level key is a pool name. Within each pool, you can define:
@@ -329,6 +356,7 @@ Each top-level key is a pool name. Within each pool, you can define:
 - `redis` — Redis connection in the format `host:port:db` with optional query parameters for credentials (`?user=x&password=y`)
 - `sentinel` — Redis Sentinel connection with master name, optional database number, and a list of sentinel addresses
 - `local_cache` — maximum number of cached entries (integer)
+- `clickhouse` — ClickHouse connection with a `uri` and optional settings (`maxOpenConnections`, `maxIdleConnections`, `connMaxLifetime`)
 - `streams` — list of Redis Stream names to register on the pool
 
 ## Setting Options

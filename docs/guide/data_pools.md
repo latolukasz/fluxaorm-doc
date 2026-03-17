@@ -120,6 +120,51 @@ static_data:
 Choose cache sizes carefully. A cache that is too small will have a low hit rate due to frequent evictions. A cache that is too large will consume unnecessary memory. Consider defining multiple pools with different sizes — keep frequently accessed data in larger pools and less critical data in smaller ones.
 :::
 
+## ClickHouse Pool
+
+Register a ClickHouse connection using the `RegisterClickhouse` method. The first argument is a ClickHouse [DSN](https://github.com/ClickHouse/clickhouse-go#dsn) (data source name):
+
+```go
+import "github.com/latolukasz/fluxaorm/v2"
+
+registry := fluxaorm.NewRegistry()
+
+// ClickHouse pool named "analytics" with default options:
+registry.RegisterClickhouse("clickhouse://localhost:9000/default", "analytics", nil)
+
+// Pool with custom options:
+registry.RegisterClickhouse("clickhouse://localhost:9000/default", "analytics", &fluxaorm.ClickhouseOptions{
+    MaxOpenConnections: 20,
+    MaxIdleConnections: 10,
+})
+```
+
+Equivalent YAML configuration:
+
+```yml
+analytics:
+  clickhouse:
+    uri: clickhouse://localhost:9000/default
+    maxOpenConnections: 20
+    maxIdleConnections: 10
+```
+
+### ClickHouse Options
+
+The `ClickhouseOptions` struct lets you configure connection pool behavior:
+
+```go
+type ClickhouseOptions struct {
+    ConnMaxLifetime    time.Duration // max lifetime of a connection before it is closed
+    MaxOpenConnections int           // max number of open connections
+    MaxIdleConnections int           // max number of idle connections in the pool
+}
+```
+
+::: tip
+ClickHouse support in FluxaORM is query-only — there is no entity mapping or schema management. Use it for analytics queries, reporting, and direct SQL operations against ClickHouse.
+:::
+
 ## Redis Pool
 
 ::: warning Minimum Version

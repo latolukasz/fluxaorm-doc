@@ -11,7 +11,7 @@ func (l *MyLogger) Handle(ctx fluxaorm.Context, log map[string]any) {
     fmt.Printf("QUERY %s in %s\n", log["query"], log["source"])
 }
 
-ctx.RegisterQueryLogger(&MyLogger{}, true, true, true)
+ctx.RegisterQueryLogger(&MyLogger{}, fluxaorm.QueryLoggerOptions{MySQL: true, Redis: true, Local: true, Clickhouse: true})
 ```
 
 This method requires an implementation of the `fluxaorm.LogHandler` interface:
@@ -30,7 +30,7 @@ The `log` map provides the following fields:
 
 | Key | Value Type | Description |
 |:-------------|:-------------|:------|
-| `source` | `string` | `mysql`, `redis`, or `local_cache` |
+| `source` | `string` | `mysql`, `redis`, `local_cache`, or `clickhouse` |
 | `pool` | `string` | [Data pool](/guide/data_pools.html) name |
 | `query` | `string` | Full query string |
 | `operation` | `string` | Short label describing the operation |
@@ -49,16 +49,19 @@ You can specify which queries should be logged by setting the respective boolean
 
 ```go
 // Log only MySQL queries
-ctx.RegisterQueryLogger(&MyLogger{}, true, false, false)
+ctx.RegisterQueryLogger(&MyLogger{}, fluxaorm.QueryLoggerOptions{MySQL: true})
 
 // Log only Redis queries
-ctx.RegisterQueryLogger(&MyLogger{}, false, true, false)
+ctx.RegisterQueryLogger(&MyLogger{}, fluxaorm.QueryLoggerOptions{Redis: true})
 
 // Log only local cache queries
-ctx.RegisterQueryLogger(&MyLogger{}, false, false, true)
+ctx.RegisterQueryLogger(&MyLogger{}, fluxaorm.QueryLoggerOptions{Local: true})
+
+// Log only ClickHouse queries
+ctx.RegisterQueryLogger(&MyLogger{}, fluxaorm.QueryLoggerOptions{Clickhouse: true})
 
 // Log MySQL and Redis queries
-ctx.RegisterQueryLogger(&MyLogger{}, true, true, false)
+ctx.RegisterQueryLogger(&MyLogger{}, fluxaorm.QueryLoggerOptions{MySQL: true, Redis: true})
 ```
 
 ## Built-in Debug Logger
@@ -66,11 +69,11 @@ ctx.RegisterQueryLogger(&MyLogger{}, true, true, false)
 FluxaORM includes a built-in colored console logger that you can enable for quick debugging:
 
 ```go
-// Enable debug logging for all sources (MySQL, Redis, local cache)
+// Enable debug logging for all sources (MySQL, Redis, local cache, ClickHouse)
 ctx.EnableQueryDebug()
 
 // Enable debug logging for specific sources
-ctx.EnableQueryDebugCustom(true, true, false) // MySQL and Redis only
+ctx.EnableQueryDebugCustom(fluxaorm.QueryLoggerOptions{MySQL: true, Redis: true})
 ```
 
 The debug logger prints each query to `stderr` with color-coded output showing the source, pool, operation, timing, and query text.

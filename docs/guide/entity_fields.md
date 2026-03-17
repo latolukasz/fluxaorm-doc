@@ -329,6 +329,8 @@ order.SetStatus(enums.StatusList.Pending)
 status := order.GetStatus()  // returns enums.Status
 ```
 
+When creating a new entity with `New()` or `NewWithID()`, required enum fields are automatically initialized to their first defined value (e.g. `"pending"` in the example above). This ensures the entity can be flushed to the database without explicitly setting every required enum field.
+
 ### Optional Enums
 
 Without `orm:"required"`, the enum field is nullable. The getter returns a pointer:
@@ -413,6 +415,8 @@ product.SetTags(enums.TagsList.Sale, enums.TagsList.Featured)
 
 tags := product.GetTags()  // returns []enums.Tags
 ```
+
+When creating a new entity with `New()` or `NewWithID()`, required set fields are automatically initialized to their first defined value (e.g. `"sale"` in the example above).
 
 ### Optional Sets
 

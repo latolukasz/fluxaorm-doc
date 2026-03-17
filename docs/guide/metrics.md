@@ -140,6 +140,46 @@ fluxaorm_redis_queries_errors{pool="default",source="default"} 123
 | `pool` | pool code string | The Redis pool code |
 | `source` | source string | Metrics source tag |
 
+## ClickHouse Metrics
+
+### `fluxaorm_clickhouse_queries_seconds` (Histogram)
+
+Tracks the duration of all ClickHouse queries.
+
+```
+# HELP Total number of ClickHouse queries executed
+# TYPE fluxaorm_clickhouse_queries_seconds histogram
+fluxaorm_clickhouse_queries_seconds{le="0.005",operation="exec",pool="analytics",source="default"} 100
+...
+fluxaorm_clickhouse_queries_seconds_sum{operation="exec",pool="analytics",source="default"} 12.345
+fluxaorm_clickhouse_queries_seconds_count{operation="exec",pool="analytics",source="default"} 500
+```
+
+**Labels:**
+
+| Label | Values | Description |
+|-------|--------|-------------|
+| `operation` | `select`, `exec` | Type of ClickHouse operation |
+| `pool` | pool code string | The ClickHouse pool code (e.g. `"analytics"`) |
+| `source` | source string | Metrics source tag (default: `"default"`) |
+
+### `fluxaorm_clickhouse_queries_errors` (Counter)
+
+Counts the total number of ClickHouse query errors.
+
+```
+# HELP Total number of ClickHouse queries errors
+# TYPE fluxaorm_clickhouse_queries_errors counter
+fluxaorm_clickhouse_queries_errors{pool="analytics",source="default"} 123
+```
+
+**Labels:**
+
+| Label | Values | Description |
+|-------|--------|-------------|
+| `pool` | pool code string | The ClickHouse pool code |
+| `source` | source string | Metrics source tag |
+
 ## Changing the Metrics Source
 
 Every metric includes a `source` label. By default it is set to `"default"`.
@@ -164,3 +204,5 @@ fluxaorm_db_queries_seconds{le="0.005",operation="exec",pool="default",source="m
 | `fluxaorm_redis_queries_seconds` | Histogram | `operation`, `pool`, `set`, `miss`, `pipeline`, `source` | Duration of Redis queries |
 | `fluxaorm_redis_queries_block` | Counter | `operation`, `pool`, `source` | Count of blocking Redis queries |
 | `fluxaorm_redis_queries_errors` | Counter | `pool`, `source` | Count of Redis query errors |
+| `fluxaorm_clickhouse_queries_seconds` | Histogram | `operation`, `pool`, `source` | Duration of ClickHouse queries |
+| `fluxaorm_clickhouse_queries_errors` | Counter | `pool`, `source` | Count of ClickHouse query errors |
