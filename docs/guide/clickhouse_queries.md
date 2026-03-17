@@ -38,7 +38,7 @@ The `Clickhouse` interface returned by `engine.Clickhouse(code)` provides the fo
 | `GetDBClient() DBClient` | Returns the underlying `database/sql` client |
 | `SetMockDBClient(mock DBClient)` | Replaces the DB client with a mock (useful for testing) |
 | `Exec(ctx, query, args...) (ExecResult, error)` | Executes a query (DDL, INSERT, etc.) |
-| `QueryRow(ctx, query, toFill...) (bool, error)` | Queries a single row, returns `false` if not found |
+| `QueryRow(ctx, query Where, toFill...) (bool, error)` | Queries a single row using a `Where` object, returns `false` if not found |
 | `Query(ctx, query, args...) (Rows, close, error)` | Queries multiple rows |
 
 Note that unlike the MySQL `DB` interface, `Clickhouse` does not support transactions.
@@ -59,12 +59,12 @@ _, err = ch.Exec(ctx, "INSERT INTO events (id, name, ts) VALUES (?, ?, ?)", 1, "
 
 ## Querying a Single Row
 
-Use `QueryRow()` to fetch a single row. Unlike the MySQL `QueryRow`, this method takes a plain query string (not a `Where` object):
+Use `QueryRow()` to fetch a single row. Like the MySQL `DB.QueryRow`, this method takes a `Where` object for automatic parameter binding:
 
 ```go
 ch := engine.Clickhouse("analytics")
 var count uint64
-found, err := ch.QueryRow(ctx, "SELECT count() FROM events WHERE name = 'page_view'", &count)
+found, err := ch.QueryRow(ctx, fluxaorm.NewWhere("SELECT count() FROM events WHERE name = ?", "page_view"), &count)
 if found {
     fmt.Printf("Page views: %d\n", count)
 }
