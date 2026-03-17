@@ -6,8 +6,8 @@ import { searchPlugin } from '@vuepress/plugin-search'
 
 export default defineUserConfig({
   lang: 'en-US',
-  title: 'FluxaORM v2: Code-Generation-Based Go ORM for MySQL and Redis',
-  description: 'FluxaORM v2 is a code-generation-based Go ORM for high-traffic applications. Define entities as Go structs, generate type-safe Providers with CRUD methods, getters/setters with dirty tracking, and leverage MySQL, Redis caching, and Redis Search — all with zero reflection at runtime.',
+  title: 'FluxaORM v2: Code-Generation-Based Go ORM for MySQL, Redis, and ClickHouse',
+  description: 'FluxaORM v2 is a code-generation-based Go ORM for high-traffic applications. Define entities as Go structs, generate type-safe Providers with CRUD methods, getters/setters with dirty tracking, and leverage MySQL, ClickHouse, Redis caching, and Redis Search — all with zero reflection at runtime.',
   head: [
     ['link', { rel: 'icon', href: '/favicon.ico' }]
   ],
