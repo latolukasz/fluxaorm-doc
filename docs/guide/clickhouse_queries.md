@@ -1,6 +1,6 @@
 # ClickHouse Queries
 
-FluxaORM provides query-only ClickHouse support for analytics, reporting, and direct SQL operations. There is no entity mapping or schema management for ClickHouse — it is designed for raw query execution.
+FluxaORM provides ClickHouse support for analytics, reporting, and direct SQL operations. For schema management, see [ClickHouse Schema Management](/guide/clickhouse_schema.html).
 
 First, configure a ClickHouse pool and create an engine:
 

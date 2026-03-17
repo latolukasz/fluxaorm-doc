@@ -61,6 +61,7 @@ export default defineUserConfig({
             'redis_search',
             'mysql_queries',
             'clickhouse_queries',
+            'clickhouse_schema',
             'local_cache',
             'context_cache',
             'fake_delete',

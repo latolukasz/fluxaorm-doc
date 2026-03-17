@@ -141,3 +141,35 @@ The `Exec(ctx)` method executes the `FT.CREATE` command to create the index. Onl
 ::: tip
 Call `GetRedisSearchAlters()` after `GetAlters()` in your migration flow to ensure both MySQL tables and Redis Search indexes are up to date.
 :::
+
+## ClickHouse Schema Alterations
+
+If you register ClickHouse table definitions using `RegisterClickhouseTable()`, you can retrieve and apply pending ClickHouse DDL changes with `GetClickhouseAlters()`:
+
+```go
+alters, err := fluxaorm.GetClickhouseAlters(ctx)
+if err != nil {
+    panic(err)
+}
+for _, alter := range alters {
+    fmt.Println(alter.SQL)  // e.g. "CREATE TABLE events ..."
+    fmt.Println(alter.Pool) // e.g. "analytics"
+    err = alter.Exec(ctx)
+    if err != nil {
+        panic(err)
+    }
+}
+```
+
+Each `fluxaorm.ClickhouseAlter` has the following fields:
+
+| Field  | Type     | Description |
+|--------|----------|-------------|
+| `SQL`  | `string` | The DDL statement to execute |
+| `Pool` | `string` | The ClickHouse pool code this alter belongs to |
+
+`GetClickhouseAlters()` generates `CREATE TABLE`, `ALTER TABLE` (add/modify/drop columns, TTL, settings, comment), and `DROP TABLE` statements. ENGINE, ORDER BY, and PARTITION BY mismatches produce warning comments since ClickHouse does not support altering these properties.
+
+::: tip
+See the [ClickHouse Schema Management](/guide/clickhouse_schema.html) page for the full builder API and detailed documentation.
+:::

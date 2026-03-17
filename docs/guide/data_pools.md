@@ -162,8 +162,29 @@ type ClickhouseOptions struct {
 ```
 
 ::: tip
-ClickHouse support in FluxaORM is query-only — there is no entity mapping or schema management. Use it for analytics queries, reporting, and direct SQL operations against ClickHouse.
+ClickHouse support in FluxaORM includes both raw query execution and [schema management](/guide/clickhouse_schema.html). Use `RegisterClickhouseTable()` to define table schemas and `GetClickhouseAlters()` to generate DDL statements.
 :::
+
+### ClickHouse Ignored Tables
+
+By default, FluxaORM's [schema update](/guide/schema_update.html#clickhouse-schema-alterations) will attempt to remove ClickHouse tables that are not registered via `RegisterClickhouseTable()`. To keep external or unmanaged tables, list them in the `IgnoredTables` option:
+
+```go
+registry.RegisterClickhouse("clickhouse://localhost:9000/default", "analytics", &fluxaorm.ClickhouseOptions{
+    IgnoredTables: []string{"legacy_events", "temp_imports"},
+})
+```
+
+Equivalent YAML:
+
+```yml
+analytics:
+  clickhouse:
+    uri: clickhouse://localhost:9000/default
+    ignoredTables:
+      - legacy_events
+      - temp_imports
+```
 
 ## Redis Pool
 
