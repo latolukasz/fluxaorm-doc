@@ -1,6 +1,6 @@
 # Introduction
 
-FluxaORM is a **code-generation-first** ORM for Go, purpose-built for [MySQL](https://www.mysql.com/) and [Redis](https://redis.io/), with query-only [ClickHouse](https://clickhouse.com/) support for analytics. Instead of relying on runtime reflection to map structs to database rows, FluxaORM generates fully typed Go code from your entity definitions — giving you compile-time safety, zero-reflection data access, and built-in dirty tracking.
+FluxaORM is a **code-generation-first** ORM for Go, purpose-built for [MySQL](https://www.mysql.com/) and [Redis](https://redis.io/), with query-only [ClickHouse](https://clickhouse.com/) support for analytics and [Apache Kafka](https://kafka.apache.org/) integration for event streaming. Instead of relying on runtime reflection to map structs to database rows, FluxaORM generates fully typed Go code from your entity definitions — giving you compile-time safety, zero-reflection data access, and built-in dirty tracking.
 
 ## How It Works
 
@@ -139,6 +139,10 @@ FluxaORM requires **Redis 8.2** or later. The `Validate()` method will return an
 
 FluxaORM provides query-only ClickHouse integration for analytics, reporting, and direct SQL operations. Register a ClickHouse pool alongside your MySQL and Redis pools, then use `engine.Clickhouse(code)` to execute raw queries — no entity mapping or schema management involved. See [ClickHouse Queries](/guide/clickhouse_queries.html) for details.
 
+## Kafka Support
+
+FluxaORM integrates with [Apache Kafka](https://kafka.apache.org/) via the [franz-go](https://github.com/twmb/franz-go) library, providing sync/async producing, consumer group support, and SASL authentication. Register a Kafka pool, then use `engine.Kafka(code)` to produce and consume messages with built-in logging and metrics. See [Kafka](/guide/kafka.html) for details.
+
 ## What's Next
 
-Continue to the [Registry](/guide/registry.html) page to learn how to configure connection pools and register entities, or jump to [Data Pools](/guide/data_pools.html) for details on MySQL, Redis, ClickHouse, and local cache pool options.
+Continue to the [Registry](/guide/registry.html) page to learn how to configure connection pools and register entities, or jump to [Data Pools](/guide/data_pools.html) for details on MySQL, Redis, ClickHouse, Kafka, and local cache pool options.
