@@ -188,18 +188,19 @@ analytics:
 
 ## Kafka Pool
 
-FluxaORM supports Apache Kafka as a data pool type, powered by [franz-go](https://github.com/twmb/franz-go). Register a Kafka pool using the `RegisterKafka` method:
+FluxaORM supports Apache Kafka as a data pool type, powered by [franz-go](https://github.com/twmb/franz-go). A Kafka pool represents a connection to a set of brokers and can contain multiple consumer groups. Register a Kafka pool using the `RegisterKafka` method:
 
 ```go
 import "github.com/latolukasz/fluxaorm/v2"
 
 registry := fluxaorm.NewRegistry()
 
-registry.RegisterKafka([]string{"localhost:9092", "localhost:9093"}, "events", &fluxaorm.KafkaOptions{
-    ClientID:      "my-service",
-    ConsumerGroup: "my-group",
-    ConsumeTopics: []string{"orders", "payments"},
-})
+registry.RegisterKafka([]string{"localhost:9092", "localhost:9093"}, "events", &fluxaorm.KafkaPoolOptions{
+    ClientID: "my-service",
+},
+    fluxaorm.KafkaConsumerGroupSettings{Name: "order-group", Topics: []string{"orders"}},
+    fluxaorm.KafkaConsumerGroupSettings{Name: "payment-group", Topics: []string{"payments"}},
+)
 ```
 
 Equivalent YAML configuration:
@@ -211,10 +212,13 @@ events:
       - localhost:9092
       - localhost:9093
     clientID: my-service
-    consumerGroup: my-group
-    consumeTopics:
-      - orders
-      - payments
+    consumerGroups:
+      - name: order-group
+        topics:
+          - orders
+      - name: payment-group
+        topics:
+          - payments
 ```
 
 For the full list of options, SASL authentication, producing and consuming records, see the dedicated [Kafka](/guide/kafka.html) page.

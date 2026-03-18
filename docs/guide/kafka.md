@@ -2,23 +2,33 @@
 
 FluxaORM provides first-class support for Apache Kafka as a data pool type. Under the hood it uses [franz-go](https://github.com/twmb/franz-go), a high-performance pure-Go Kafka client.
 
+A Kafka pool represents a connection to a set of brokers and can contain **multiple consumer groups**, each with its own set of topics and configuration.
+
 ## Pool Registration
 
-Register a Kafka pool using the `RegisterKafka` method:
+Register a Kafka pool using the `RegisterKafka` method. The pool accepts pool-level options and one or more consumer group definitions:
 
 ```go
 import "github.com/latolukasz/fluxaorm/v2"
 
 registry := fluxaorm.NewRegistry()
 
-// Kafka pool named "events" with default options:
-registry.RegisterKafka([]string{"localhost:9092"}, "events", nil)
+// Kafka pool named "events" with one consumer group:
+registry.RegisterKafka([]string{"localhost:9092"}, "events", &fluxaorm.KafkaPoolOptions{
+    ClientID: "my-service",
+}, fluxaorm.KafkaConsumerGroupSettings{Name: "my-group", Topics: []string{"orders", "payments"}})
 
-// Pool with custom options:
-registry.RegisterKafka([]string{"localhost:9092", "localhost:9093"}, "events", &fluxaorm.KafkaOptions{
-    ClientID:      "my-service",
-    ConsumerGroup: "my-group",
-    ConsumeTopics: []string{"orders", "payments"},
+// Pool with multiple consumer groups:
+registry.RegisterKafka([]string{"localhost:9092", "localhost:9093"}, "events", &fluxaorm.KafkaPoolOptions{
+    ClientID: "my-service",
+},
+    fluxaorm.KafkaConsumerGroupSettings{Name: "order-group", Topics: []string{"orders"}},
+    fluxaorm.KafkaConsumerGroupSettings{Name: "payment-group", Topics: []string{"payments"}},
+)
+
+// Pool with no consumer groups (producer-only):
+registry.RegisterKafka([]string{"localhost:9092"}, "events", &fluxaorm.KafkaPoolOptions{
+    ClientID: "my-service",
 })
 ```
 
@@ -31,28 +41,25 @@ events:
       - localhost:9092
       - localhost:9093
     clientID: my-service
-    consumerGroup: my-group
-    consumeTopics:
-      - orders
-      - payments
+    consumerGroups:
+      - name: order-group
+        topics:
+          - orders
+      - name: payment-group
+        topics:
+          - payments
 ```
 
-## KafkaOptions
+## KafkaPoolOptions
 
-The `KafkaOptions` struct lets you configure the Kafka client:
+The `KafkaPoolOptions` struct configures pool-level settings shared by all consumer groups:
 
 ```go
-type KafkaOptions struct {
+type KafkaPoolOptions struct {
     ClientID           string
-    ConsumerGroup      string
-    ConsumeTopics      []string
     RequiredAcks       int
     ProducerLinger     time.Duration
     MaxBufferedRecords int
-    SessionTimeout     time.Duration
-    RebalanceTimeout   time.Duration
-    FetchMaxBytes      int32
-    AutoCommitInterval time.Duration
     SASL               *KafkaSASLConfig
 }
 ```
@@ -60,35 +67,60 @@ type KafkaOptions struct {
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `ClientID` | `string` | `""` | Client identifier sent to the broker |
-| `ConsumerGroup` | `string` | `""` | Consumer group ID for group consumption |
-| `ConsumeTopics` | `[]string` | `nil` | Topics to consume from |
 | `RequiredAcks` | `int` | `-1` | Broker acknowledgment level: `0` = none, `1` = leader only, `-1` = all in-sync replicas |
 | `ProducerLinger` | `time.Duration` | `0` | How long to wait before flushing a produce batch |
 | `MaxBufferedRecords` | `int` | `0` | Maximum number of records buffered in the producer |
-| `SessionTimeout` | `time.Duration` | `0` | Consumer group session timeout |
-| `RebalanceTimeout` | `time.Duration` | `0` | Consumer group rebalance timeout |
-| `FetchMaxBytes` | `int32` | `0` | Maximum bytes per fetch response |
-| `AutoCommitInterval` | `time.Duration` | `0` | Interval for automatic offset commits; `0` means manual commit |
 | `SASL` | `*KafkaSASLConfig` | `nil` | SASL authentication configuration |
 
-## Config Struct
+## KafkaConsumerGroupSettings
 
-When loading configuration from a file, FluxaORM uses the `ConfigKafka` struct:
+The `KafkaConsumerGroupSettings` struct configures an individual consumer group within the pool:
 
 ```go
-type ConfigKafka struct {
-    Brokers            []string
-    ClientID           string
-    ConsumerGroup      string
-    ConsumeTopics      []string
-    RequiredAcks       int
-    ProducerLinger     time.Duration
-    MaxBufferedRecords int
+type KafkaConsumerGroupSettings struct {
+    Name               string
+    Topics             []string
     SessionTimeout     time.Duration
     RebalanceTimeout   time.Duration
     FetchMaxBytes      int32
     AutoCommitInterval time.Duration
-    SASL               *KafkaSASLConfig
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Name` | `string` | **required** | Consumer group ID |
+| `Topics` | `[]string` | **required** | Topics to consume from |
+| `SessionTimeout` | `time.Duration` | `0` | Consumer group session timeout |
+| `RebalanceTimeout` | `time.Duration` | `0` | Consumer group rebalance timeout |
+| `FetchMaxBytes` | `int32` | `0` | Maximum bytes per fetch response |
+| `AutoCommitInterval` | `time.Duration` | `0` | Interval for automatic offset commits; `0` means manual commit |
+
+## Config Structs
+
+When loading configuration from a file, FluxaORM uses the `ConfigKafka` and `ConfigKafkaConsumerGroup` structs:
+
+```go
+type ConfigKafkaConsumerGroup struct {
+    Name                 string   `yaml:"name"`
+    Topics               []string `yaml:"topics"`
+    SessionTimeoutMs     int      `yaml:"sessionTimeoutMs"`
+    RebalanceTimeoutMs   int      `yaml:"rebalanceTimeoutMs"`
+    FetchMaxBytes        int      `yaml:"fetchMaxBytes"`
+    AutoCommitIntervalMs int      `yaml:"autoCommitIntervalMs"`
+}
+
+type ConfigKafka struct {
+    Code               string                     `yaml:"code"`
+    Brokers            []string                   `yaml:"brokers"`
+    ClientID           string                     `yaml:"clientID"`
+    RequiredAcks       int                        `yaml:"requiredAcks"`
+    ProducerLingerMs   int                        `yaml:"producerLingerMs"`
+    MaxBufferedRecords int                        `yaml:"maxBufferedRecords"`
+    SASLMechanism      string                     `yaml:"saslMechanism"`
+    SASLUser           string                     `yaml:"saslUser"`
+    SASLPassword       string                     `yaml:"saslPassword"`
+    ConsumerGroups     []ConfigKafkaConsumerGroup `yaml:"consumerGroups"`
 }
 ```
 
@@ -97,10 +129,74 @@ type ConfigKafka struct {
 Once the engine is created, access a Kafka pool via:
 
 ```go
-kafka := engine.Kafka("events")
+pool := engine.Kafka("events")
 ```
 
-This returns a `Kafka` interface that exposes the methods described below.
+This returns a `Kafka` interface representing the pool. You can produce records directly via the pool, and obtain consumer groups from the pool for consuming records.
+
+## Consumer Groups
+
+Each Kafka pool can have one or more consumer groups. Use the pool-level methods to access them:
+
+### ConsumerGroup
+
+`ConsumerGroup` returns a `KafkaConsumerGroup` and an error. Each call creates a **new `kgo.Client`** connected to the brokers — it is a factory method, not a lookup. The caller is responsible for calling `Close()` on the returned consumer group when done:
+
+```go
+cg, err := pool.ConsumerGroup("my-group")
+if err != nil {
+    // name not registered or connection failed
+}
+defer cg.Close()
+```
+
+### MustConsumerGroup
+
+`MustConsumerGroup` returns a `KafkaConsumerGroup` for the given name and panics if the group is not registered or if the connection fails. Use this when you are certain the group was registered and you want to fail fast on errors:
+
+```go
+cg := pool.MustConsumerGroup("my-group")
+defer cg.Close()
+```
+
+### ConsumerGroupNames
+
+`ConsumerGroupNames` returns the list of registered consumer group names in the pool:
+
+```go
+for _, name := range pool.ConsumerGroupNames() {
+    fmt.Println(name)
+}
+```
+
+### Kafka (Pool) Interface
+
+The `Kafka` interface exposes pool-level methods:
+
+| Method | Description |
+|--------|-------------|
+| `GetCode() string` | Returns the pool code (e.g. `"events"`) |
+| `GetBrokers() []string` | Returns the list of broker addresses |
+| `GetPoolOptions() *KafkaPoolOptions` | Returns the pool-level options |
+| `ProduceSync(ctx Context, records ...*KafkaRecord) error` | Produces records synchronously and blocks until acknowledged |
+| `Produce(ctx Context, record *KafkaRecord, callback func(*KafkaRecord, error))` | Produces a record asynchronously with an optional callback |
+| `ConsumerGroup(name string) (KafkaConsumerGroup, error)` | Creates a new consumer group client by name; returns error if not registered or connection fails |
+| `MustConsumerGroup(name string) KafkaConsumerGroup` | Creates a new consumer group client by name; panics if not registered or connection fails |
+| `ConsumerGroupNames() []string` | Returns the list of registered consumer group names |
+| `Close()` | Closes the pool-level producer client; consumer groups must be closed individually |
+
+### KafkaConsumerGroup Interface
+
+The `KafkaConsumerGroup` interface exposes per-group methods:
+
+| Method | Description |
+|--------|-------------|
+| `GetName() string` | Returns the consumer group name |
+| `GetSettings() *KafkaConsumerGroupSettings` | Returns the consumer group settings |
+| `GetKgoClient() *kgo.Client` | Returns the underlying franz-go client |
+| `PollFetches(ctx Context) KafkaFetches` | Polls for new records |
+| `CommitUncommittedOffsets(ctx Context) error` | Commits offsets for consumed records |
+| `Close()` | Closes this consumer group's client |
 
 ## KafkaRecord
 
@@ -142,12 +238,14 @@ type KafkaRecordHeader struct {
 
 ## Producing Records
 
+All produce operations are performed through the pool directly. You do not need a consumer group to produce records.
+
 ### Synchronous Produce
 
 `ProduceSync` sends one or more records to Kafka and blocks until the broker acknowledges them:
 
 ```go
-kafka := engine.Kafka("events")
+pool := engine.Kafka("events")
 
 record := &fluxaorm.KafkaRecord{
     Topic: "orders",
@@ -158,7 +256,7 @@ record := &fluxaorm.KafkaRecord{
     },
 }
 
-err := kafka.ProduceSync(ctx, record)
+err := pool.ProduceSync(ctx, record)
 if err != nil {
     // handle error
 }
@@ -166,10 +264,10 @@ if err != nil {
 
 ### Asynchronous Produce
 
-`Produce` sends a record asynchronously. The call returns immediately and the record is buffered for delivery:
+`Produce` sends a record asynchronously. The call returns immediately and the record is buffered for delivery. An optional callback is invoked when the broker acknowledges or rejects the record:
 
 ```go
-kafka := engine.Kafka("events")
+pool := engine.Kafka("events")
 
 record := &fluxaorm.KafkaRecord{
     Topic: "orders",
@@ -177,7 +275,11 @@ record := &fluxaorm.KafkaRecord{
     Value: []byte(`{"status":"shipped"}`),
 }
 
-kafka.Produce(ctx, record)
+pool.Produce(ctx, record, func(r *fluxaorm.KafkaRecord, err error) {
+    if err != nil {
+        log.Printf("produce failed: %v", err)
+    }
+})
 ```
 
 ## Consuming Records
@@ -187,9 +289,11 @@ kafka.Produce(ctx, record)
 `PollFetches` polls the broker for new records. It returns a `KafkaFetches` value:
 
 ```go
-kafka := engine.Kafka("events")
+pool := engine.Kafka("events")
+cg := pool.MustConsumerGroup("my-group")
+defer cg.Close()
 
-fetches := kafka.PollFetches(ctx)
+fetches := cg.PollFetches(ctx)
 if fetches.IsEmpty() {
     return
 }
@@ -208,40 +312,40 @@ fetches.EachRecord(func(record *fluxaorm.KafkaRecord) {
 After processing records, commit the offsets so they are not re-delivered:
 
 ```go
-err := kafka.CommitUncommittedOffsets(ctx)
+err := cg.CommitUncommittedOffsets(ctx)
 if err != nil {
     // handle error
 }
 ```
 
 ::: tip
-When `AutoCommitInterval` is set to `0` (the default), you must call `CommitUncommittedOffsets` manually after processing each batch. Set a positive `AutoCommitInterval` to enable automatic periodic commits.
+When `AutoCommitInterval` is set to `0` (the default), you must call `CommitUncommittedOffsets` manually after processing each batch. Set a positive `AutoCommitInterval` in `KafkaConsumerGroupSettings` to enable automatic periodic commits.
 :::
 
 ## Advanced Usage
 
-If you need direct access to the underlying `*kgo.Client` from franz-go, use `GetKgoClient`:
+If you need direct access to the underlying `*kgo.Client` from franz-go, use `GetKgoClient` on a consumer group:
 
 ```go
-client := kafka.GetKgoClient()
+cg := pool.MustConsumerGroup("my-group")
+defer cg.Close()
+client := cg.GetKgoClient()
 // use the franz-go client directly for advanced operations
 ```
 
 ## SASL Authentication
 
-To connect to a Kafka cluster that requires SASL authentication, configure the `SASL` field in `KafkaOptions`:
+To connect to a Kafka cluster that requires SASL authentication, configure the `SASL` field in `KafkaPoolOptions`. SASL is a pool-level setting shared by all consumer groups:
 
 ```go
-registry.RegisterKafka([]string{"kafka-broker:9093"}, "secure-events", &fluxaorm.KafkaOptions{
-    ClientID:      "my-service",
-    ConsumerGroup: "my-group",
-    ConsumeTopics: []string{"orders"},
+registry.RegisterKafka([]string{"kafka-broker:9093"}, "secure-events", &fluxaorm.KafkaPoolOptions{
+    ClientID: "my-service",
     SASL: &fluxaorm.KafkaSASLConfig{
         Mechanism: "SCRAM-SHA-256",
         User:      "kafka-user",
         Password:  "kafka-password",
     },
-})
+}, fluxaorm.KafkaConsumerGroupSettings{Name: "my-group", Topics: []string{"orders"}})
 ```
 
 `KafkaSASLConfig` supports the following mechanisms:
@@ -260,23 +364,37 @@ secure-events:
     brokers:
       - kafka-broker:9093
     clientID: my-service
-    consumerGroup: my-group
-    consumeTopics:
-      - orders
-    sasl:
-      mechanism: SCRAM-SHA-256
-      user: kafka-user
-      password: kafka-password
+    saslMechanism: SCRAM-SHA-256
+    saslUser: kafka-user
+    saslPassword: kafka-password
+    consumerGroups:
+      - name: my-group
+        topics:
+          - orders
 ```
 
-## Closing the Client
+## Closing
 
-When you are done using a Kafka pool, call `Close` to release all resources (connections, goroutines, buffers):
+The pool and consumer groups have separate lifecycles and must be closed independently.
+
+### Closing Consumer Groups
+
+Each call to `ConsumerGroup` or `MustConsumerGroup` creates a new `kgo.Client`. The caller is responsible for closing it when done:
 
 ```go
-kafka.Close()
+cg := pool.MustConsumerGroup("my-group")
+defer cg.Close()
+// ... consume records ...
+```
+
+### Closing the Pool
+
+Calling `Close` on the pool closes only the pool-level producer client. It does **not** close any consumer groups — those must be closed individually by the caller:
+
+```go
+pool.Close()
 ```
 
 ::: tip
-If you are using FluxaORM's engine lifecycle, the engine will close all Kafka clients when it shuts down. You only need to call `Close` manually if you are managing the Kafka client outside of the engine lifecycle.
+If you are using FluxaORM's engine lifecycle, the engine will close all Kafka pools when it shuts down. However, consumer groups you created must still be closed by your own code.
 :::
