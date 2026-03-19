@@ -200,7 +200,7 @@ Each `fluxaorm.KafkaAlter` has the following fields:
 | `Description` | `string` | Human-readable description of the pending operation |
 | `Pool` | `string` | The Kafka pool code this alter belongs to |
 
-`GetKafkaAlters()` creates missing topics, increases partition counts, alters topic configurations, and deletes unregistered topics. Partition decreases and replication factor changes produce warnings since Kafka does not support these operations.
+`GetKafkaAlters()` creates missing topics, increases partition counts, alters topic configurations, deletes unregistered topics, and deletes orphaned consumer groups. Partition decreases and replication factor changes produce warnings since Kafka does not support these operations.
 
 ::: tip
 See the [Kafka Topic Registration](/guide/kafka.html#topic-registration) page for the full builder API and detailed documentation.

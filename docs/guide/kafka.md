@@ -6,30 +6,54 @@ A Kafka pool represents a connection to a set of brokers and can contain **multi
 
 ## Pool Registration
 
-Register a Kafka pool using the `RegisterKafka` method. The pool accepts pool-level options and one or more consumer group definitions:
+Register a Kafka pool using the `RegisterKafka` method:
 
 ```go
 import "github.com/latolukasz/fluxaorm/v2"
 
 registry := fluxaorm.NewRegistry()
 
-// Kafka pool named "events" with one consumer group:
-registry.RegisterKafka([]string{"localhost:9092"}, "events", &fluxaorm.KafkaPoolOptions{
-    ClientID: "my-service",
-}, fluxaorm.KafkaConsumerGroupSettings{Name: "my-group", Topics: []string{"orders", "payments"}})
-
-// Pool with multiple consumer groups:
-registry.RegisterKafka([]string{"localhost:9092", "localhost:9093"}, "events", &fluxaorm.KafkaPoolOptions{
-    ClientID: "my-service",
-},
-    fluxaorm.KafkaConsumerGroupSettings{Name: "order-group", Topics: []string{"orders"}},
-    fluxaorm.KafkaConsumerGroupSettings{Name: "payment-group", Topics: []string{"payments"}},
-)
-
-// Pool with no consumer groups (producer-only):
+// Kafka pool named "events":
 registry.RegisterKafka([]string{"localhost:9092"}, "events", &fluxaorm.KafkaPoolOptions{
     ClientID: "my-service",
 })
+
+// Pool with multiple brokers:
+registry.RegisterKafka([]string{"localhost:9092", "localhost:9093"}, "events", &fluxaorm.KafkaPoolOptions{
+    ClientID: "my-service",
+})
+
+// Pool with no options (producer-only):
+registry.RegisterKafka([]string{"localhost:9092"}, "events", nil)
+```
+
+## Consumer Group Registration
+
+Consumer groups are registered separately using the `RegisterKafkaConsumerGroup` method and the `KafkaConsumerGroupBuilder` fluent API:
+
+```go
+// Register a single consumer group:
+registry.RegisterKafkaConsumerGroup(
+    fluxaorm.NewKafkaConsumerGroup("my-group", "events").Topics("orders", "payments"),
+)
+
+// Register multiple consumer groups:
+registry.RegisterKafkaConsumerGroup(
+    fluxaorm.NewKafkaConsumerGroup("order-group", "events").Topics("orders"),
+)
+registry.RegisterKafkaConsumerGroup(
+    fluxaorm.NewKafkaConsumerGroup("payment-group", "events").Topics("payments"),
+)
+
+// Consumer group with all options:
+registry.RegisterKafkaConsumerGroup(
+    fluxaorm.NewKafkaConsumerGroup("my-group", "events").
+        Topics("orders", "payments").
+        SessionTimeout(30 * time.Second).
+        RebalanceTimeout(60 * time.Second).
+        FetchMaxBytes(10485760).
+        AutoCommitInterval(5 * time.Second),
+)
 ```
 
 Equivalent YAML configuration:
@@ -56,12 +80,13 @@ The `KafkaPoolOptions` struct configures pool-level settings shared by all consu
 
 ```go
 type KafkaPoolOptions struct {
-    ClientID           string
-    RequiredAcks       int
-    ProducerLinger     time.Duration
-    MaxBufferedRecords int
-    SASL               *KafkaSASLConfig
-    IgnoredTopics      []string
+    ClientID              string
+    RequiredAcks          int
+    ProducerLinger        time.Duration
+    MaxBufferedRecords    int
+    SASL                  *KafkaSASLConfig
+    IgnoredTopics         []string
+    IgnoredConsumerGroups []string
 }
 ```
 
@@ -73,30 +98,28 @@ type KafkaPoolOptions struct {
 | `MaxBufferedRecords` | `int` | `0` | Maximum number of records buffered in the producer |
 | `SASL` | `*KafkaSASLConfig` | `nil` | SASL authentication configuration |
 | `IgnoredTopics` | `[]string` | `nil` | Topics to exclude from schema management (see [Topic Registration](#topic-registration)) |
+| `IgnoredConsumerGroups` | `[]string` | `nil` | Consumer groups to exclude from deletion by `GetKafkaAlters()` (see [Consumer Group Management](#consumer-group-management)) |
 
-## KafkaConsumerGroupSettings
+## KafkaConsumerGroupBuilder
 
-The `KafkaConsumerGroupSettings` struct configures an individual consumer group within the pool:
+Consumer groups are configured using the `KafkaConsumerGroupBuilder` fluent API. Create a new builder with `NewKafkaConsumerGroup(name, poolCode)`:
 
 ```go
-type KafkaConsumerGroupSettings struct {
-    Name               string
-    Topics             []string
-    SessionTimeout     time.Duration
-    RebalanceTimeout   time.Duration
-    FetchMaxBytes      int32
-    AutoCommitInterval time.Duration
-}
+cg := fluxaorm.NewKafkaConsumerGroup("my-group", "events").
+    Topics("orders", "payments").
+    SessionTimeout(30 * time.Second).
+    FetchMaxBytes(10485760)
 ```
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `Name` | `string` | **required** | Consumer group ID |
-| `Topics` | `[]string` | **required** | Topics to consume from |
-| `SessionTimeout` | `time.Duration` | `0` | Consumer group session timeout |
-| `RebalanceTimeout` | `time.Duration` | `0` | Consumer group rebalance timeout |
-| `FetchMaxBytes` | `int32` | `0` | Maximum bytes per fetch response |
-| `AutoCommitInterval` | `time.Duration` | `0` | Interval for automatic offset commits; `0` means manual commit |
+All builder methods return `*KafkaConsumerGroupBuilder` for fluent chaining:
+
+| Method | Description |
+|--------|-------------|
+| `Topics(topics ...string)` | Topics to consume from (**required**) |
+| `SessionTimeout(d time.Duration)` | Consumer group session timeout |
+| `RebalanceTimeout(d time.Duration)` | Consumer group rebalance timeout |
+| `FetchMaxBytes(n int32)` | Maximum bytes per fetch response |
+| `AutoCommitInterval(d time.Duration)` | Interval for automatic offset commits; `0` means manual commit |
 
 ## Config Structs
 
@@ -120,18 +143,19 @@ type ConfigKafkaTopic struct {
 }
 
 type ConfigKafka struct {
-    Code               string                     `yaml:"code"`
-    Brokers            []string                   `yaml:"brokers"`
-    ClientID           string                     `yaml:"clientID"`
-    RequiredAcks       int                        `yaml:"requiredAcks"`
-    ProducerLingerMs   int                        `yaml:"producerLingerMs"`
-    MaxBufferedRecords int                        `yaml:"maxBufferedRecords"`
-    SASLMechanism      string                     `yaml:"saslMechanism"`
-    SASLUser           string                     `yaml:"saslUser"`
-    SASLPassword       string                     `yaml:"saslPassword"`
-    ConsumerGroups     []ConfigKafkaConsumerGroup `yaml:"consumerGroups"`
-    IgnoredTopics      []string                   `yaml:"ignoredTopics"`
-    Topics             []ConfigKafkaTopic         `yaml:"topics"`
+    Code                  string                     `yaml:"code"`
+    Brokers               []string                   `yaml:"brokers"`
+    ClientID              string                     `yaml:"clientID"`
+    RequiredAcks          int                        `yaml:"requiredAcks"`
+    ProducerLingerMs      int                        `yaml:"producerLingerMs"`
+    MaxBufferedRecords    int                        `yaml:"maxBufferedRecords"`
+    SASLMechanism         string                     `yaml:"saslMechanism"`
+    SASLUser              string                     `yaml:"saslUser"`
+    SASLPassword          string                     `yaml:"saslPassword"`
+    ConsumerGroups        []ConfigKafkaConsumerGroup `yaml:"consumerGroups"`
+    IgnoredTopics         []string                   `yaml:"ignoredTopics"`
+    IgnoredConsumerGroups []string                   `yaml:"ignoredConsumerGroups"`
+    Topics                []ConfigKafkaTopic         `yaml:"topics"`
 }
 ```
 
@@ -330,7 +354,7 @@ if err != nil {
 ```
 
 ::: tip
-When `AutoCommitInterval` is set to `0` (the default), you must call `CommitUncommittedOffsets` manually after processing each batch. Set a positive `AutoCommitInterval` in `KafkaConsumerGroupSettings` to enable automatic periodic commits.
+When `AutoCommitInterval` is set to `0` (the default), you must call `CommitUncommittedOffsets` manually after processing each batch. Set a positive `AutoCommitInterval` via the `KafkaConsumerGroupBuilder` to enable automatic periodic commits.
 :::
 
 ## Advanced Usage
@@ -356,7 +380,10 @@ registry.RegisterKafka([]string{"kafka-broker:9093"}, "secure-events", &fluxaorm
         User:      "kafka-user",
         Password:  "kafka-password",
     },
-}, fluxaorm.KafkaConsumerGroupSettings{Name: "my-group", Topics: []string{"orders"}})
+})
+registry.RegisterKafkaConsumerGroup(
+    fluxaorm.NewKafkaConsumerGroup("my-group", "secure-events").Topics("orders"),
+)
 ```
 
 `KafkaSASLConfig` supports the following mechanisms:
@@ -496,6 +523,7 @@ for _, alter := range alters {
 | Replication factor differs | Warning (replication factor cannot be changed via admin API) |
 | Topic config differs from registered values | Alter topic configuration |
 | Topic on broker but not registered | Delete topic |
+| Consumer group on broker but not registered | Delete consumer group |
 
 ::: warning
 Kafka does **not** support decreasing the number of partitions or changing the replication factor of an existing topic. If these differ, `GetKafkaAlters()` returns a warning description but no executable operation for these changes.
@@ -503,6 +531,10 @@ Kafka does **not** support decreasing the number of partitions or changing the r
 
 ::: warning
 FluxaORM deletes all topics on the broker that are not registered, excluding internal topics (those starting with `__`) and topics listed in `IgnoredTopics`. See [Ignored Topics](#ignored-topics) for how to protect topics from deletion.
+:::
+
+::: warning
+FluxaORM also deletes all consumer groups on the broker that are not registered, excluding internal consumer groups (those starting with `__`) and consumer groups listed in `IgnoredConsumerGroups`. See [Ignored Consumer Groups](#ignored-consumer-groups) for how to protect consumer groups from deletion.
 :::
 
 ### Ignored Topics
@@ -529,6 +561,39 @@ default:
       - external-service-topic
 ```
 
+### Consumer Group Management
+
+`GetKafkaAlters()` also manages consumer groups. It lists all consumer groups on the broker and generates **DELETE** alters for orphaned consumer groups -- those that exist on the broker but are not registered via `RegisterKafkaConsumerGroup()`.
+
+The following consumer groups are excluded from deletion:
+- Consumer groups that are registered in the application
+- Internal consumer groups (those starting with `__`)
+- Consumer groups listed in `IgnoredConsumerGroups`
+
+### Ignored Consumer Groups
+
+By default, `GetKafkaAlters()` will attempt to delete consumer groups on the broker that are not registered. Internal consumer groups (those starting with `__`, such as `__consumer_offsets`) are always excluded automatically.
+
+To protect additional consumer groups from deletion, list them in the `IgnoredConsumerGroups` field of `KafkaPoolOptions`:
+
+```go
+registry.RegisterKafka([]string{"localhost:9092"}, "default", &fluxaorm.KafkaPoolOptions{
+    IgnoredConsumerGroups: []string{"legacy-consumer", "external-service-consumer"},
+})
+```
+
+Equivalent YAML:
+
+```yml
+default:
+  kafka:
+    brokers:
+      - localhost:9092
+    ignoredConsumerGroups:
+      - legacy-consumer
+      - external-service-consumer
+```
+
 ### Backward Compatibility
 
 Topic schema management is **opt-in** and fully backward compatible:
@@ -548,6 +613,8 @@ default:
       - "localhost:9092"
     ignoredTopics:
       - "legacy-topic"
+    ignoredConsumerGroups:
+      - "legacy-consumer"
     topics:
       - name: "orders"
         partitions: 6
@@ -571,9 +638,10 @@ Topics can be defined using the `ConfigKafkaTopic` struct within `ConfigKafka`:
 config := &fluxaorm.Config{
     KafkaPools: []fluxaorm.ConfigKafka{
         {
-            Code:    "default",
-            Brokers: []string{"localhost:9092"},
-            IgnoredTopics: []string{"legacy-topic"},
+            Code:                  "default",
+            Brokers:               []string{"localhost:9092"},
+            IgnoredTopics:         []string{"legacy-topic"},
+            IgnoredConsumerGroups: []string{"legacy-consumer"},
             Topics: []fluxaorm.ConfigKafkaTopic{
                 {
                     Name:              "orders",
@@ -608,8 +676,17 @@ import (
 func main() {
     registry := fluxaorm.NewRegistry()
     registry.RegisterKafka([]string{"localhost:9092"}, "default", &fluxaorm.KafkaPoolOptions{
-        IgnoredTopics: []string{"legacy-topic"},
+        IgnoredTopics:         []string{"legacy-topic"},
+        IgnoredConsumerGroups: []string{"legacy-consumer"},
     })
+
+    // Define consumer groups
+    registry.RegisterKafkaConsumerGroup(
+        fluxaorm.NewKafkaConsumerGroup("order-group", "default").Topics("orders"),
+    )
+    registry.RegisterKafkaConsumerGroup(
+        fluxaorm.NewKafkaConsumerGroup("payment-group", "default").Topics("payments"),
+    )
 
     // Define topics
     registry.RegisterKafkaTopic(

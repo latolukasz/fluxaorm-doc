@@ -130,10 +130,22 @@ See [Data Pools](/guide/data_pools.html) for all `ClickhouseOptions` fields.
 ```go
 registry.RegisterKafka([]string{"localhost:9092"}, "events", &fluxaorm.KafkaPoolOptions{
     ClientID: "my-service",
-}, fluxaorm.KafkaConsumerGroupSettings{Name: "my-group", Topics: []string{"orders"}})
+})
 ```
 
 See [Data Pools](/guide/data_pools.html) and the dedicated [Kafka](/guide/kafka.html) page for all options.
+
+### Kafka Consumer Groups
+
+Register consumer groups separately using the `RegisterKafkaConsumerGroup` method and the fluent builder API:
+
+```go
+registry.RegisterKafkaConsumerGroup(
+    fluxaorm.NewKafkaConsumerGroup("my-group", "events").Topics("orders"),
+)
+```
+
+See [Kafka Consumer Group Registration](/guide/kafka.html#consumer-group-registration) for all builder options.
 
 ### Kafka Topics
 
@@ -325,18 +337,19 @@ type ConfigClickhouse struct {
 }
 
 type ConfigKafka struct {
-    Code               string                     // required — pool name
-    Brokers            []string                   // required — broker addresses
-    ClientID           string
-    RequiredAcks       int
-    ProducerLingerMs   int
-    MaxBufferedRecords int
-    SASLMechanism      string
-    SASLUser           string
-    SASLPassword       string
-    ConsumerGroups     []ConfigKafkaConsumerGroup
-    IgnoredTopics      []string                   // topics to exclude from schema management
-    Topics             []ConfigKafkaTopic         // topic definitions for schema management
+    Code                  string                     // required — pool name
+    Brokers               []string                   // required — broker addresses
+    ClientID              string
+    RequiredAcks          int
+    ProducerLingerMs      int
+    MaxBufferedRecords    int
+    SASLMechanism         string
+    SASLUser              string
+    SASLPassword          string
+    ConsumerGroups        []ConfigKafkaConsumerGroup
+    IgnoredTopics         []string                   // topics to exclude from schema management
+    IgnoredConsumerGroups []string                   // consumer groups to exclude from deletion
+    Topics                []ConfigKafkaTopic         // topic definitions for schema management
 }
 
 type ConfigKafkaConsumerGroup struct {
@@ -436,7 +449,7 @@ Each top-level key is a pool name. Within each pool, you can define:
 - `sentinel` — Redis Sentinel connection with master name, optional database number, and a list of sentinel addresses
 - `local_cache` — maximum number of cached entries (integer)
 - `clickhouse` — ClickHouse connection with a `uri` and optional settings (`maxOpenConnections`, `maxIdleConnections`, `connMaxLifetime`)
-- `kafka` — Kafka connection with `brokers`, optional `consumerGroups`, `topics`, `ignoredTopics`, and other settings
+- `kafka` — Kafka connection with `brokers`, optional `consumerGroups`, `topics`, `ignoredTopics`, `ignoredConsumerGroups`, and other settings
 - `streams` — list of Redis Stream names to register on the pool
 
 ## Setting Options

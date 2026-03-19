@@ -188,7 +188,7 @@ analytics:
 
 ## Kafka Pool
 
-FluxaORM supports Apache Kafka as a data pool type, powered by [franz-go](https://github.com/twmb/franz-go). A Kafka pool represents a connection to a set of brokers and can contain multiple consumer groups. Register a Kafka pool using the `RegisterKafka` method:
+FluxaORM supports Apache Kafka as a data pool type, powered by [franz-go](https://github.com/twmb/franz-go). A Kafka pool represents a connection to a set of brokers and can contain multiple consumer groups. Register a Kafka pool using the `RegisterKafka` method, and consumer groups separately using `RegisterKafkaConsumerGroup`:
 
 ```go
 import "github.com/latolukasz/fluxaorm/v2"
@@ -197,9 +197,13 @@ registry := fluxaorm.NewRegistry()
 
 registry.RegisterKafka([]string{"localhost:9092", "localhost:9093"}, "events", &fluxaorm.KafkaPoolOptions{
     ClientID: "my-service",
-},
-    fluxaorm.KafkaConsumerGroupSettings{Name: "order-group", Topics: []string{"orders"}},
-    fluxaorm.KafkaConsumerGroupSettings{Name: "payment-group", Topics: []string{"payments"}},
+})
+
+registry.RegisterKafkaConsumerGroup(
+    fluxaorm.NewKafkaConsumerGroup("order-group", "events").Topics("orders"),
+)
+registry.RegisterKafkaConsumerGroup(
+    fluxaorm.NewKafkaConsumerGroup("payment-group", "events").Topics("payments"),
 )
 ```
 
@@ -247,6 +251,28 @@ events:
     ignoredTopics:
       - legacy-topic
       - external-service-topic
+```
+
+### Kafka Ignored Consumer Groups
+
+Similarly, `GetKafkaAlters()` will attempt to delete consumer groups on the broker that are not registered via `RegisterKafkaConsumerGroup()`. Internal consumer groups (those starting with `__`) are always excluded. To protect additional consumer groups from deletion, list them in the `IgnoredConsumerGroups` option:
+
+```go
+registry.RegisterKafka([]string{"localhost:9092"}, "events", &fluxaorm.KafkaPoolOptions{
+    IgnoredConsumerGroups: []string{"legacy-consumer", "external-service-consumer"},
+})
+```
+
+Equivalent YAML:
+
+```yml
+events:
+  kafka:
+    brokers:
+      - localhost:9092
+    ignoredConsumerGroups:
+      - legacy-consumer
+      - external-service-consumer
 ```
 
 ## Redis Pool
