@@ -223,6 +223,32 @@ events:
 
 For the full list of options, SASL authentication, producing and consuming records, see the dedicated [Kafka](/guide/kafka.html) page.
 
+::: tip
+Kafka support in FluxaORM includes both producing/consuming and [topic schema management](/guide/kafka.html#topic-registration). Use `RegisterKafkaTopic()` to define topic schemas and `GetKafkaAlters()` to synchronize topics with the broker.
+:::
+
+### Kafka Ignored Topics
+
+By default, FluxaORM's [topic schema management](/guide/kafka.html#topic-registration) will attempt to delete Kafka topics that are not registered via `RegisterKafkaTopic()`. Internal Kafka topics (those starting with `__`) are always excluded automatically. To keep additional external or legacy topics, list them in the `IgnoredTopics` option:
+
+```go
+registry.RegisterKafka([]string{"localhost:9092"}, "events", &fluxaorm.KafkaPoolOptions{
+    IgnoredTopics: []string{"legacy-topic", "external-service-topic"},
+})
+```
+
+Equivalent YAML:
+
+```yml
+events:
+  kafka:
+    brokers:
+      - localhost:9092
+    ignoredTopics:
+      - legacy-topic
+      - external-service-topic
+```
+
 ## Redis Pool
 
 ::: warning Minimum Version

@@ -1,6 +1,6 @@
 # Registry
 
-The `Registry` is the starting point for configuring FluxaORM. It lets you register entity structs, connection pools (MySQL, Redis, local cache), and streams before validating everything into an immutable `Engine`.
+The `Registry` is the starting point for configuring FluxaORM. It lets you register entity structs, connection pools (MySQL, Redis, ClickHouse, Kafka, local cache), and streams before validating everything into an immutable `Engine`.
 
 ## Creating a Registry
 
@@ -125,6 +125,32 @@ registry.RegisterClickhouse("clickhouse://localhost:9000/logs", "ch_logs", &flux
 
 See [Data Pools](/guide/data_pools.html) for all `ClickhouseOptions` fields.
 
+### Kafka
+
+```go
+registry.RegisterKafka([]string{"localhost:9092"}, "events", &fluxaorm.KafkaPoolOptions{
+    ClientID: "my-service",
+}, fluxaorm.KafkaConsumerGroupSettings{Name: "my-group", Topics: []string{"orders"}})
+```
+
+See [Data Pools](/guide/data_pools.html) and the dedicated [Kafka](/guide/kafka.html) page for all options.
+
+### Kafka Topics
+
+Register Kafka topic definitions for schema management. This follows the same pattern as `RegisterClickhouseTable()`:
+
+```go
+registry.RegisterKafkaTopic(
+    fluxaorm.NewKafkaTopic("orders", "events").
+        Partitions(6).
+        ReplicationFactor(3).
+        RetentionMs(86400000).
+        CleanupPolicy("delete"),
+)
+```
+
+See [Kafka Topic Registration](/guide/kafka.html#topic-registration) for the full builder API and schema management details.
+
 ## Registering Streams
 
 ### Redis Streams
@@ -165,7 +191,7 @@ if err != nil {
 
 `Validate()` performs the following:
 
-- Connects to all MySQL and ClickHouse pools and configures connection limits
+- Connects to all MySQL, ClickHouse, and Kafka pools and configures connection limits
 - Connects to all Redis pools
 - Parses entity struct tags and builds schema metadata
 - Resolves entity references and indexes
@@ -226,6 +252,15 @@ config := &fluxaorm.Config{
     ClickhousePools: []fluxaorm.ConfigClickhouse{
         {Code: "analytics", URI: "clickhouse://localhost:9000/default"},
     },
+    KafkaPools: []fluxaorm.ConfigKafka{
+        {
+            Code:    "events",
+            Brokers: []string{"localhost:9092"},
+            Topics: []fluxaorm.ConfigKafkaTopic{
+                {Name: "orders", Partitions: 6, ReplicationFactor: 3},
+            },
+        },
+    },
 }
 
 err := registry.InitByConfig(config)
@@ -243,6 +278,7 @@ type Config struct {
     RedisSentinelPools []ConfigRedisSentinel
     LocalCachePools    []ConfigLocalCache
     ClickhousePools    []ConfigClickhouse
+    KafkaPools         []ConfigKafka
 }
 
 type ConfigMysql struct {
@@ -286,6 +322,37 @@ type ConfigClickhouse struct {
     ConnMaxLifetime    int    // seconds
     MaxOpenConnections int
     MaxIdleConnections int
+}
+
+type ConfigKafka struct {
+    Code               string                     // required — pool name
+    Brokers            []string                   // required — broker addresses
+    ClientID           string
+    RequiredAcks       int
+    ProducerLingerMs   int
+    MaxBufferedRecords int
+    SASLMechanism      string
+    SASLUser           string
+    SASLPassword       string
+    ConsumerGroups     []ConfigKafkaConsumerGroup
+    IgnoredTopics      []string                   // topics to exclude from schema management
+    Topics             []ConfigKafkaTopic         // topic definitions for schema management
+}
+
+type ConfigKafkaConsumerGroup struct {
+    Name                 string
+    Topics               []string
+    SessionTimeoutMs     int
+    RebalanceTimeoutMs   int
+    FetchMaxBytes        int
+    AutoCommitIntervalMs int
+}
+
+type ConfigKafkaTopic struct {
+    Name              string            // required — topic name
+    Partitions        int32
+    ReplicationFactor int16
+    Configs           map[string]string // arbitrary topic config key-value pairs
 }
 ```
 
@@ -348,6 +415,18 @@ cluster:
 analytics:
   clickhouse:
     uri: clickhouse://localhost:9000/default
+events:
+  kafka:
+    brokers:
+      - localhost:9092
+    ignoredTopics:
+      - legacy-topic
+    topics:
+      - name: orders
+        partitions: 6
+        replicationFactor: 3
+        configs:
+          retention.ms: "86400000"
 ```
 
 Each top-level key is a pool name. Within each pool, you can define:
@@ -357,6 +436,7 @@ Each top-level key is a pool name. Within each pool, you can define:
 - `sentinel` — Redis Sentinel connection with master name, optional database number, and a list of sentinel addresses
 - `local_cache` — maximum number of cached entries (integer)
 - `clickhouse` — ClickHouse connection with a `uri` and optional settings (`maxOpenConnections`, `maxIdleConnections`, `connMaxLifetime`)
+- `kafka` — Kafka connection with `brokers`, optional `consumerGroups`, `topics`, `ignoredTopics`, and other settings
 - `streams` — list of Redis Stream names to register on the pool
 
 ## Setting Options

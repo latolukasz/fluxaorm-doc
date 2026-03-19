@@ -173,3 +173,35 @@ Each `fluxaorm.ClickhouseAlter` has the following fields:
 ::: tip
 See the [ClickHouse Schema Management](/guide/clickhouse_schema.html) page for the full builder API and detailed documentation.
 :::
+
+## Kafka Topic Alterations
+
+If you register Kafka topic definitions using `RegisterKafkaTopic()`, you can retrieve and apply pending topic changes with `GetKafkaAlters()`:
+
+```go
+alters, err := fluxaorm.GetKafkaAlters(ctx)
+if err != nil {
+    panic(err)
+}
+for _, alter := range alters {
+    fmt.Println(alter.Description) // e.g. "Create topic 'orders' with 6 partitions"
+    fmt.Println(alter.Pool)        // e.g. "default"
+    err = alter.Exec(ctx)
+    if err != nil {
+        panic(err)
+    }
+}
+```
+
+Each `fluxaorm.KafkaAlter` has the following fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Description` | `string` | Human-readable description of the pending operation |
+| `Pool` | `string` | The Kafka pool code this alter belongs to |
+
+`GetKafkaAlters()` creates missing topics, increases partition counts, alters topic configurations, and deletes unregistered topics. Partition decreases and replication factor changes produce warnings since Kafka does not support these operations.
+
+::: tip
+See the [Kafka Topic Registration](/guide/kafka.html#topic-registration) page for the full builder API and detailed documentation.
+:::
