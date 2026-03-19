@@ -63,7 +63,7 @@ type Context interface {
     // Flushes all tracked entity changes to MySQL and Redis
     Flush() error
 
-    // Flushes changes asynchronously via Redis Streams
+    // Flushes changes asynchronously via Kafka
     FlushAsync(immediateRedisUpdates bool) error
 
     // Returns an async SQL consumer for processing queued FlushAsync operations
@@ -95,9 +95,6 @@ type Context interface {
 
     // Tracks an entity for the next Flush() call
     Track(e Entity, cacheIndex uint64)
-
-    // Returns the event broker for publishing/subscribing to entity events
-    GetEventBroker() EventBroker
 }
 ```
 
@@ -130,7 +127,7 @@ if err != nil {
 
 ### Asynchronous Flush
 
-`FlushAsync(immediateRedisUpdates)` works similarly to `Flush()`, but instead of executing SQL queries directly against MySQL, it publishes them to a Redis Stream. When `immediateRedisUpdates` is `true`, Redis cache and search indexes are updated immediately (optimistic update). When `false`, all Redis operations are deferred to the consumer alongside the SQL queries. A separate consumer process retrieves and executes the queued operations asynchronously.
+`FlushAsync(immediateRedisUpdates)` works similarly to `Flush()`, but instead of executing SQL queries directly against MySQL, it publishes them to a Kafka topic (`_fluxa_async_sql`). When `immediateRedisUpdates` is `true`, Redis cache and search indexes are updated immediately (optimistic update). When `false`, all Redis operations are deferred to the consumer alongside the SQL queries. A separate consumer process retrieves and executes the queued operations asynchronously.
 
 ```go
 err := ctx.FlushAsync(true)
@@ -295,16 +292,6 @@ result, err := pipeline.Exec(ctx)
 ```
 
 Redis pipelines are also used internally by `Flush()` to batch all Redis cache updates.
-
-## Event Broker
-
-The Context provides access to an event broker for entity lifecycle events:
-
-```go
-broker := ctx.GetEventBroker()
-```
-
-The event broker allows you to subscribe to entity changes (inserts, updates, deletes) and publish custom events. See the Event Broker documentation for details.
 
 ## Accessing the Engine
 

@@ -70,8 +70,6 @@ export default defineUserConfig({
             'metrics',
             'redis_operations',
             'distributed_lock',
-            'event_broker',
-            'dirty_streams',
             'queries_log',
             'testing'
           ]

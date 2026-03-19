@@ -455,6 +455,3 @@ The pipeline supports the following commands:
 **Set operations:**
 - `SAdd(key string, members ...any)`
 - `SRem(key string, members ...any)`
-
-**Stream operations:**
-- `XAdd(stream string, values []string) *PipeLineString` -- `Result()` returns `(string, error)`

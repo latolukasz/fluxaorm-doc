@@ -46,6 +46,20 @@ func TestCreateUser(t *testing.T) {
 
 The function returns a ready-to-use `fluxaorm.Context`.
 
+### PrepareTablesWithKafka
+
+`PrepareTablesWithKafka` works identically to `PrepareTables` but also registers a Kafka pool and async flush, making it suitable for testing `FlushAsync()`:
+
+```go
+func TestWithKafka(t *testing.T) {
+    registry := fluxaorm.NewRegistry()
+    ctx := fluxaorm.PrepareTablesWithKafka(t, registry, &UserEntity{})
+
+    // ctx is ready with Kafka and async flush configured
+    // You can use ctx.FlushAsync(true) or ctx.FlushAsync(false)
+}
+```
+
 ### PrepareTablesBeta
 
 `PrepareTablesBeta` works identically to `PrepareTables` but configures the MySQL connection with the `Beta` option enabled (which uses `parseTime=true&loc=UTC` in the DSN):

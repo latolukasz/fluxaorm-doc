@@ -732,6 +732,32 @@ func main() {
 Call `GetKafkaAlters()` alongside `GetAlters()`, `GetRedisSearchAlters()`, and `GetClickhouseAlters()` in your migration flow to keep all data stores in sync.
 :::
 
+## Async Flush via Kafka
+
+FluxaORM uses Kafka as the transport for asynchronous SQL flushing. When you call `RegisterAsyncFlush()` on the registry, FluxaORM registers the internal Kafka topic `_fluxa_async_sql` (and a dead-letter topic `_fluxa_async_sql_failed`) on the specified Kafka pool.
+
+```go
+registry.RegisterKafka([]string{"localhost:9092"}, "events", nil)
+registry.RegisterAsyncFlush("events", &fluxaorm.AsyncFlushOptions{
+    TopicPartitions: 6,
+})
+```
+
+When `ctx.FlushAsync(true)` or `ctx.FlushAsync(false)` is called, SQL operations are produced to the `_fluxa_async_sql` topic with the entity table name as the record key. This ensures that queries for the same table are routed to the same partition, preserving per-table ordering.
+
+The `AsyncSQLConsumer` uses a Kafka consumer group internally, enabling horizontal scaling across multiple consumer instances. See the [Async Flush](/guide/async_flush) page for full details on consuming, error handling, and cache update behavior.
+
+The topic names are available as constants:
+
+```go
+fluxaorm.AsyncSQLTopicName           // "_fluxa_async_sql"
+fluxaorm.AsyncSQLDeadLetterTopicName // "_fluxa_async_sql_failed"
+```
+
+::: tip
+When using `GetKafkaAlters()`, the async flush topics and consumer group are included automatically if `RegisterAsyncFlush()` has been called. No manual topic registration is needed for async flush.
+:::
+
 ## Closing
 
 The pool and consumer groups have separate lifecycles and must be closed independently.

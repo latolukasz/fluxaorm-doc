@@ -85,9 +85,6 @@ type Engine interface {
 
     // Returns a custom option value previously set via SetOption or registry
     Option(key string) any
-
-    // Returns all registered Redis stream group configurations
-    GetRedisStreams() map[string]map[string]string
 }
 ```
 

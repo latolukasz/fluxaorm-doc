@@ -1,6 +1,6 @@
 # Registry
 
-The `Registry` is the starting point for configuring FluxaORM. It lets you register entity structs, connection pools (MySQL, Redis, ClickHouse, Kafka, local cache), and streams before validating everything into an immutable `Engine`.
+The `Registry` is the starting point for configuring FluxaORM. It lets you register entity structs, connection pools (MySQL, Redis, ClickHouse, Kafka, local cache), and async flush before validating everything into an immutable `Engine`.
 
 ## Creating a Registry
 
@@ -163,36 +163,29 @@ registry.RegisterKafkaTopic(
 
 See [Kafka Topic Registration](/guide/kafka.html#topic-registration) for the full builder API and schema management details.
 
-## Registering Streams
+## Registering Async Flush
 
-### Redis Streams
-
-Register a named Redis Stream backed by a specific Redis pool:
+Register Kafka-based async flush for non-critical writes. This enables `ctx.FlushAsync(true)` and `ctx.FlushAsync(false)` to publish SQL operations to a Kafka topic instead of executing them immediately:
 
 ```go
-registry.RegisterRedisStream("order-events", fluxaorm.DefaultPoolCode)
-registry.RegisterRedisStream("notifications", "events")
+registry.RegisterAsyncFlush("events", &fluxaorm.AsyncFlushOptions{
+    TopicPartitions: 6,
+})
 ```
 
-Each stream is assigned a consumer group automatically. Streams are used for event-driven workflows such as entity change notifications and asynchronous processing.
-
-### Async SQL Stream
-
-Register the built-in async SQL stream for non-critical writes. This enables `ctx.FlushAsync(true)` and `ctx.FlushAsync(false)` to publish SQL operations to a Redis Stream instead of executing them immediately:
+The first argument is the Kafka pool code to use. The `AsyncFlushOptions` struct allows you to configure the number of partitions for the async flush topic:
 
 ```go
-registry.RegisterAsyncSQLStream(fluxaorm.DefaultPoolCode)
+type AsyncFlushOptions struct {
+    TopicPartitions int32 // number of partitions for the _fluxa_async_sql topic
+}
 ```
 
-This call registers two internal streams on the specified Redis pool: the main async SQL stream and a dead-letter stream for failed operations.
-
-::: tip
-If you have a Redis pool registered with the code `"default"` and do not explicitly call `RegisterAsyncSQLStream()`, FluxaORM will automatically register the async SQL streams on the default pool during `Validate()`.
-:::
+This registers the internal Kafka topic `_fluxa_async_sql` (and a dead-letter topic `_fluxa_async_sql_failed`) on the specified Kafka pool. The record key is the entity table name, so queries for the same table are routed to the same partition, preserving ordering per table.
 
 ## Validating the Registry
 
-Once all pools, entities, and streams are registered, call `Validate()` to produce an `Engine`:
+Once all pools, entities, and async flush are registered, call `Validate()` to produce an `Engine`:
 
 ```go
 engine, err := registry.Validate()
@@ -247,7 +240,7 @@ config := &fluxaorm.Config{
         {Code: "logs", URI: "root:root@tcp(localhost:3306)/logs", MaxOpenConnections: 50},
     },
     RedisPools: []fluxaorm.ConfigRedis{
-        {Code: "default", URI: "localhost:6379", Database: 0, Streams: []string{"order-events"}},
+        {Code: "default", URI: "localhost:6379", Database: 0},
         {Code: "sessions", URI: "localhost:6379", Database: 1},
     },
     RedisSentinelPools: []fluxaorm.ConfigRedisSentinel{
@@ -273,6 +266,10 @@ config := &fluxaorm.Config{
             },
         },
     },
+    AsyncFlush: &fluxaorm.ConfigAsyncFlush{
+        KafkaPool:       "events",
+        TopicPartitions: 6,
+    },
 }
 
 err := registry.InitByConfig(config)
@@ -291,6 +288,12 @@ type Config struct {
     LocalCachePools    []ConfigLocalCache
     ClickhousePools    []ConfigClickhouse
     KafkaPools         []ConfigKafka
+    AsyncFlush         *ConfigAsyncFlush
+}
+
+type ConfigAsyncFlush struct {
+    KafkaPool       string // required — Kafka pool code
+    TopicPartitions int32  // number of partitions for the async flush topic
 }
 
 type ConfigMysql struct {
@@ -305,12 +308,11 @@ type ConfigMysql struct {
 }
 
 type ConfigRedis struct {
-    Code     string   // required — pool name
-    URI      string   // required — host:port or /path/to/socket.sock
-    Database int      // Redis database number (0-15)
+    Code     string // required — pool name
+    URI      string // required — host:port or /path/to/socket.sock
+    Database int    // Redis database number (0-15)
     User     string
     Password string
-    Streams  []string // stream names to register on this pool
 }
 
 type ConfigRedisSentinel struct {
@@ -320,7 +322,6 @@ type ConfigRedisSentinel struct {
     Sentinels  []string // list of sentinel addresses
     User       string
     Password   string
-    Streams    []string
 }
 
 type ConfigLocalCache struct {
@@ -410,9 +411,6 @@ default:
     uri: root:root@tcp(localhost:3306)/app
   redis: localhost:6379:0
   local_cache: 100000
-  streams:
-    - order-events
-    - notifications
 logs:
   mysql:
     uri: root:root@tcp(localhost:3306)/logs
@@ -450,7 +448,6 @@ Each top-level key is a pool name. Within each pool, you can define:
 - `local_cache` — maximum number of cached entries (integer)
 - `clickhouse` — ClickHouse connection with a `uri` and optional settings (`maxOpenConnections`, `maxIdleConnections`, `connMaxLifetime`)
 - `kafka` — Kafka connection with `brokers`, optional `consumerGroups`, `topics`, `ignoredTopics`, `ignoredConsumerGroups`, and other settings
-- `streams` — list of Redis Stream names to register on the pool
 
 ## Setting Options
 

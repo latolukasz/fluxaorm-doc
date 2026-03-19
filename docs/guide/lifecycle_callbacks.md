@@ -118,7 +118,7 @@ When an entity has [Fake Delete](/guide/fake_delete) enabled, calling `entity.De
 
 `ctx.FlushAsync(true)` and `ctx.FlushAsync(false)` do **not** fire lifecycle callbacks at the time they are called. Instead, callbacks are fired later by the `AsyncSQLConsumer` after the SQL has been executed against MySQL. This means callbacks always run after the database write has completed, whether synchronously via `Flush()` or asynchronously via `FlushAsync(true)` / `FlushAsync(false)` + consumer.
 
-When `FlushAsync(true)` or `FlushAsync(false)` is used, the entity event metadata (entity type, ID, and changes map for updates) is serialized alongside the SQL queries in the Redis Stream. When the consumer processes the event:
+When `FlushAsync(true)` or `FlushAsync(false)` is used, the entity event metadata (entity type, ID, and changes map for updates) is serialized alongside the SQL queries in the Kafka record. When the consumer processes the event:
 
 1. The SQL is executed against MySQL.
 2. The event is acknowledged (SQL is committed and safe).
@@ -155,7 +155,7 @@ If no callbacks are registered for an entity type, there is zero overhead. The f
 Lifecycle callbacks are useful for reacting to entity state changes without coupling the persistence logic to side effects. Common use cases include:
 
 - **Audit logging** -- record who changed what and when
-- **Event publishing** -- publish domain events to a message broker or Redis Stream after successful writes
+- **Event publishing** -- publish domain events to a message broker (e.g., Kafka) after successful writes
 - **Notifications** -- send emails, push notifications, or webhooks when entities change
 - **Search index updates** -- update external search indexes (e.g., Elasticsearch) when entities are modified
 - **Cache invalidation** -- invalidate or update external caches that depend on entity data

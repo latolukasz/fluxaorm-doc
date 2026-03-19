@@ -3,16 +3,16 @@
 In the [previous chapter](/guide/crud.html), you learned how to add, update, and delete entities using the `Flush()` method.
 `Flush()` executes both MySQL and cache (Redis, local cache) queries synchronously. Redis operations usually take a few milliseconds, and local cache changes are almost instantaneous. However, SQL queries can take a significant amount of time, typically more than 100 milliseconds. In high-traffic applications, SQL queries often become a performance bottleneck.
 
-To address this issue, FluxaORM provides a powerful feature that allows you to run all SQL queries asynchronously. Instead of executing SQL directly against MySQL, `FlushAsync(immediateRedisUpdates bool)` publishes the SQL operations to a Redis Stream. It supports two modes:
+To address this issue, FluxaORM provides a powerful feature that allows you to run all SQL queries asynchronously. Instead of executing SQL directly against MySQL, `FlushAsync(immediateRedisUpdates bool)` publishes the SQL operations to a Kafka topic (`_fluxa_async_sql`). It supports two modes:
 
 - **`FlushAsync(true)`** -- applies Redis cache and Redis Search index updates immediately (optimistic update), so cached reads see consistent data right away. Only the SQL queries are deferred to the consumer. This is useful when you want read-after-write consistency for cache-backed lookups.
-- **`FlushAsync(false)`** -- defers **all** updates to the consumer, including Redis cache and search index operations. The Redis operations are serialized into the stream alongside the SQL queries and executed by the consumer after the SQL has been committed. This is useful when you want full consistency between cache and database, or when you do not need immediate read-after-write visibility.
+- **`FlushAsync(false)`** -- defers **all** updates to the consumer, including Redis cache and search index operations. The Redis operations are serialized into the Kafka record alongside the SQL queries and executed by the consumer after the SQL has been committed. This is useful when you want full consistency between cache and database, or when you do not need immediate read-after-write visibility.
 
-In both modes, a separate consumer process picks up the queued operations from the Redis Stream and executes the SQL against MySQL.
+In both modes, a separate consumer process picks up the queued operations from the Kafka topic and executes the SQL against MySQL.
 
-## Registering the Async SQL Stream
+## Registering Async Flush
 
-Before using `FlushAsync(true)` or `FlushAsync(false)`, you must register the async SQL stream with a Redis pool. Use `RegisterAsyncSQLStream()` during registry setup:
+Before using `FlushAsync(true)` or `FlushAsync(false)`, you must register async flush with a Kafka pool. Use `RegisterAsyncFlush()` during registry setup:
 
 ```go
 package main
@@ -27,7 +27,10 @@ func main() {
     registry := fluxaorm.NewRegistry()
     registry.RegisterMySQL("user:password@tcp(localhost:3306)/db", fluxaorm.DefaultPoolCode, nil)
     registry.RegisterRedis("localhost:6379", 0, fluxaorm.DefaultPoolCode, nil)
-    registry.RegisterAsyncSQLStream(fluxaorm.DefaultPoolCode) // register the async stream on the default Redis pool
+    registry.RegisterKafka([]string{"localhost:9092"}, "events", nil)
+    registry.RegisterAsyncFlush("events", &fluxaorm.AsyncFlushOptions{
+        TopicPartitions: 6,
+    })
     registry.RegisterEntity(UserEntity{})
     engine, err := registry.Validate()
     if err != nil {
@@ -37,13 +40,19 @@ func main() {
 }
 ```
 
-::: tip
-If you have a default Redis pool registered and do not call `RegisterAsyncSQLStream()` explicitly, FluxaORM automatically registers the async SQL streams on the default pool during `Validate()`. However, it is recommended to register it explicitly for clarity.
-:::
+The `AsyncFlushOptions` struct allows you to configure the number of partitions for the async flush topic:
+
+```go
+type AsyncFlushOptions struct {
+    TopicPartitions int32 // number of partitions for the _fluxa_async_sql topic
+}
+```
+
+The record key is set to the entity table name, so all SQL queries for the same table are routed to the same Kafka partition. This preserves ordering per table and enables horizontal scaling of consumers via Kafka consumer groups.
 
 ## Using FlushAsync
 
-Once the stream is registered, use `FlushAsync(immediateRedisUpdates)` instead of `Flush()` on the context.
+Once async flush is registered, use `FlushAsync(immediateRedisUpdates)` instead of `Flush()` on the context.
 
 ### Immediate cache mode
 
@@ -65,7 +74,7 @@ if err != nil {
 When `FlushAsync(true)` is called, the following happens:
 
 1. **Redis cache and search indexes are updated immediately** -- entity data is written to Redis cache and Redis Search hashes right away.
-2. **SQL queries are serialized and published** to the `_fluxa_async_sql` Redis Stream instead of being executed against MySQL.
+2. **SQL queries are serialized and published** to the `_fluxa_async_sql` Kafka topic instead of being executed against MySQL.
 3. The entity is marked as flushed and tracking is cleared.
 
 This means that reads using cached lookups (e.g., `GetByID`, `GetByIDs`, `GetByUniqueIndex`) will return updated data immediately, while SQL-based searches will not return updated data until the consumer processes the queued operations.
@@ -82,7 +91,7 @@ err := ctx.FlushAsync(false)
 When `FlushAsync(false)` is called, the following happens:
 
 1. **Redis cache operations are recorded but NOT executed** -- no data is written to Redis cache or Redis Search hashes at call time.
-2. **SQL queries AND the recorded Redis operations are serialized and published** to the `_fluxa_async_sql` Redis Stream.
+2. **SQL queries AND the recorded Redis operations are serialized and published** to the `_fluxa_async_sql` Kafka topic.
 3. The entity is marked as flushed and tracking is cleared.
 4. **The consumer executes the SQL first, then applies the Redis cache operations** -- cache is only updated after the database write has succeeded.
 
@@ -90,7 +99,7 @@ In this mode, no cached reads (`GetByID`, `GetByIDs`, `GetByUniqueIndex`) will r
 
 ## Consuming Async Queries
 
-You must run a consumer to process the queued SQL operations. The consumer reads events from the Redis Stream and executes them against MySQL.
+You must run a consumer to process the queued SQL operations. The consumer reads records from the Kafka topic and executes them against MySQL.
 
 Use `ctx.GetAsyncSQLConsumer()` to obtain a consumer:
 
@@ -101,6 +110,7 @@ consumer, err := ctx.GetAsyncSQLConsumer()
 if err != nil {
     panic(err)
 }
+defer consumer.Close()
 
 // Process up to 100 events, blocking for up to 1 second waiting for new events
 for {
@@ -113,21 +123,16 @@ for {
 ```
 
 The `Consume(count int, blockTime time.Duration)` method:
-- Reads up to `count` events from the stream.
-- Blocks for up to `blockTime` waiting for new events if none are available.
+- Reads up to `count` records from the Kafka topic.
+- Blocks for up to `blockTime` waiting for new records if none are available.
 - Executes each SQL operation against the appropriate MySQL pool.
-- Acknowledges successfully processed events.
+- Commits offsets for successfully processed records.
 
-### AutoClaim for Stale Events
+The `Close()` method shuts down the consumer's Kafka client and must be called when the consumer is no longer needed.
 
-If a consumer crashes and leaves events in a pending state, you can use `AutoClaim()` to reclaim and process them:
+### Horizontal Scaling
 
-```go
-// Reclaim events that have been pending for more than 30 seconds
-err = consumer.AutoClaim(100, 30*time.Second)
-```
-
-This is useful for recovering from consumer failures without losing queued operations.
+The `AsyncSQLConsumer` uses a Kafka consumer group internally, which means you can run multiple consumer instances for horizontal scaling. Kafka automatically distributes partitions across consumers in the same group. Since the record key is the entity table name, all queries for a given table are processed by the same consumer instance, preserving per-table ordering.
 
 ## Understanding Cache Updates
 
@@ -165,7 +170,7 @@ The consumer classifies MySQL errors into two categories:
 
 ### Transient Errors
 
-Transient errors are temporary problems that may succeed on retry. When a transient error occurs, `Consume()` returns the error and the event remains in the stream's pending list for reprocessing.
+Transient errors are temporary problems that may succeed on retry. When a transient error occurs, `Consume()` returns the error and the record remains unacknowledged for reprocessing.
 
 Examples of transient errors:
 - Connection refused or timeout
@@ -184,9 +189,9 @@ if err != nil {
 }
 ```
 
-### Permanent Errors (Dead-Letter Stream)
+### Permanent Errors (Dead-Letter Topic)
 
-Permanent errors are problems that will not succeed on retry no matter how many times the query is re-executed. When a permanent error occurs, the event is moved to the dead-letter stream (`_fluxa_async_sql_failed`) and acknowledged from the main stream so it does not block processing.
+Permanent errors are problems that will not succeed on retry no matter how many times the query is re-executed. When a permanent error occurs, the record is moved to the dead-letter topic (`_fluxa_async_sql_failed`) and the offset is committed on the main topic so it does not block processing.
 
 Examples of permanent errors:
 - Error 1062: Duplicate entry (duplicate key)
@@ -197,28 +202,28 @@ Examples of permanent errors:
 - Error 1048: Column cannot be null
 - Error 1452: Foreign key constraint fails
 
-The dead-letter stream retains the failed SQL operations along with their error messages. You should monitor this stream and manually resolve the issues:
+The dead-letter topic retains the failed SQL operations along with their error messages. You should monitor this topic and manually resolve the issues:
 
 ```go
-// The dead-letter stream name is available as a constant:
-// fluxaorm.AsyncSQLDeadLetterStreamName = "_fluxa_async_sql_failed"
+// The dead-letter topic name is available as a constant:
+// fluxaorm.AsyncSQLDeadLetterTopicName = "_fluxa_async_sql_failed"
 ```
 
 ## Lifecycle Callbacks
 
 When [lifecycle callbacks](/guide/lifecycle_callbacks) (`OnAfterInsert`, `OnAfterUpdate`, `OnAfterDelete`) are registered for an entity type, they are automatically fired by the `AsyncSQLConsumer` after the SQL has been executed against MySQL. This means callbacks work transparently with `Flush()` (synchronous), `FlushAsync(true)`, and `FlushAsync(false)`. In both async modes, callbacks fire in the consumer after the SQL has been committed.
 
-When `FlushAsync(true)` or `FlushAsync(false)` is called, the entity event metadata (entity type, ID, and changes map for updates) is serialized alongside the SQL queries in the Redis Stream. When the consumer processes the event:
+When `FlushAsync(true)` or `FlushAsync(false)` is called, the entity event metadata (entity type, ID, and changes map for updates) is serialized alongside the SQL queries in the Kafka record. When the consumer processes the event:
 
 1. For **hard deletes**, the entity is pre-loaded from the database before SQL execution (since the row will be deleted).
 2. The SQL is executed against MySQL.
-3. The event is acknowledged.
+3. The offset is committed.
 4. For **inserts and updates**, the entity is loaded from the database using `GetByID`.
 5. The registered callback is invoked with the loaded entity.
 
 For **soft deletes** (FakeDelete), the entity is loaded after SQL execution since it still exists in the database with `FakeDelete = true`.
 
-If a callback returns an error, `Consume()` returns that error. The SQL has already been committed and the event acknowledged, so the SQL will not be re-executed. Only the callback side effect is lost.
+If a callback returns an error, `Consume()` returns that error. The SQL has already been committed and the offset acknowledged, so the SQL will not be re-executed. Only the callback side effect is lost.
 
 ```go
 // Callbacks work with Flush(), FlushAsync(true), and FlushAsync(false)

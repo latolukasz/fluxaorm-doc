@@ -100,26 +100,25 @@ The `operation` label values:
 - `list` -- LPUSH, RPUSH, LPOP, RPOP, LLEN, LRANGE, LINDEX, LSET, LMOVE, BLMOVE, LREM, LTRIM, ...
 - `hash` -- HSET, HDEL, HGET, HMGET, HGETALL, HLEN, HINCRBY, HSETNX, ...
 - `set` -- ZADD, ZCARD, ZCOUNT, ZSCORE, ZREVRANGE, ZRANGEWITHSCORES, SADD, SMEMBERS, SISMEMBER, SCARD, SPOP, ...
-- `stream` -- XADD, XTRIM, XRANGE, XREVRANGE, XLEN, XREAD, XREADGROUP, XACK, XDEL, XINFO, XPENDING, XCLAIM, XAUTOCLAIM, ...
 - `search` -- FT.LIST, FT.SEARCH, FT.CREATE, FT.INFO, FT.DROPINDEX, ...
 - `lock` -- LOCK OBTAIN, LOCK RELEASE, LOCK TTL, LOCK REFRESH
 - `other` -- INFO, EVAL, EVALSHA, SCRIPTLOAD, SCRIPTEXISTS, FLUSHALL, FLUSHDB, SCAN, ...
 
 ### `fluxaorm_redis_queries_block` (Counter)
 
-Counts the total number of blocking Redis queries (e.g. blocking `XREADGROUP` calls with a positive block time).
+Counts the total number of blocking Redis queries (e.g. blocking `BLMOVE` calls with a positive block time).
 
 ```
 # HELP Total number of Redis blocking queries executed
 # TYPE fluxaorm_redis_queries_block counter
-fluxaorm_redis_queries_block{operation="stream",pool="default",source="default"} 42
+fluxaorm_redis_queries_block{operation="list",pool="default",source="default"} 42
 ```
 
 **Labels:**
 
 | Label | Values | Description |
 |-------|--------|-------------|
-| `operation` | operation string | The operation type (e.g. `"stream"`) |
+| `operation` | operation string | The operation type (e.g. `"list"`) |
 | `pool` | pool code string | The Redis pool code |
 | `source` | source string | Metrics source tag |
 
