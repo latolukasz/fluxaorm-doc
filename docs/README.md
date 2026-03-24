@@ -17,8 +17,14 @@ features:
   details: Define entities as plain Go structs, run Generate(), and get fully typed Providers with CRUD methods, getters/setters with automatic dirty tracking, and reflection-free SQL scanning — all at compile time.
 - title: Three-Tier Caching
   details: Transparent caching across Context (per-request), Local (in-process LRU), and Redis layers. Entity reads are automatically cached and invalidated — no manual cache management needed.
-- title: MySQL + ClickHouse + Redis Search + Kafka
-  details: Full MySQL support with type-safe queries, query-only ClickHouse integration for analytics, Redis Search for lightning-fast full-text and numeric searches, and Kafka for event streaming.
+- title: MySQL
+  details: Full MySQL support with type-safe queries, automatic schema migrations, unique index lookups, fake-delete, timestamps, and async flush to Kafka for deferred writes.
+- title: ClickHouse
+  details: Query-only ClickHouse integration for analytics workloads. Register ClickHouse tables, run aggregation queries, and combine results with your MySQL entities.
+- title: Redis Search
+  details: Lightning-fast full-text and numeric searches powered by Redis Search. Tag entity fields as searchable or sortable, and query them with a fluent API — no external search engine needed.
+- title: Kafka
+  details: Built-in Kafka producer and consumer support with managed topics, consumer groups, and async SQL flush. Produce and consume events with type-safe records and automatic offset management.
 - title: Debezium CDC
   details: Built-in Change Data Capture via Debezium. Tag entities with debezium, and FluxaORM auto-manages Kafka Connect connectors, streams MySQL row changes to Kafka topics, and provides typed helpers for consuming CDC events.
   footer: MIT Licensed | Copyright © 2024-present Łukasz Lato
