@@ -164,12 +164,14 @@ For example, if your MySQL pool code is `default`, the database is `test`, and t
 fluxa_default.test.UserEntity
 ```
 
-Use `DebeziumTopicName()` to get the topic name for a specific entity:
+Use the `DebeziumTopicName()` method on the entity's Provider to get the topic name:
 
 ```go
-topicName := fluxaorm.DebeziumTopicName(ctx, &UserEntity{})
+topicName := UserEntityProvider.DebeziumTopicName(ctx)
 // Returns e.g. "fluxa_default.test.UserEntity"
 ```
+
+This method is only available on Providers for entities that have the `debezium` tag configured.
 
 ## Consuming CDC Events
 
@@ -300,5 +302,5 @@ Debezium CDC events are delivered asynchronously. There may be a short delay bet
 :::
 
 ::: tip
-For the consumer group used to consume Debezium events, register it with the appropriate topic name. Use `DebeziumTopicName()` to get the correct topic name for each entity.
+For the consumer group used to consume Debezium events, register it with the appropriate topic name. Use `Provider.DebeziumTopicName(ctx)` to get the correct topic name for each entity.
 :::
