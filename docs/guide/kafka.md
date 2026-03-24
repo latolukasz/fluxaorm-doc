@@ -729,7 +729,7 @@ func main() {
 ```
 
 ::: tip
-Call `GetKafkaAlters()` alongside `GetAlters()`, `GetRedisSearchAlters()`, and `GetClickhouseAlters()` in your migration flow to keep all data stores in sync.
+Call `GetKafkaAlters()` alongside `GetAlters()`, `GetRedisSearchAlters()`, `GetClickhouseAlters()`, and `GetDebeziumAlters()` in your migration flow to keep all data stores in sync.
 :::
 
 ## Async Flush via Kafka

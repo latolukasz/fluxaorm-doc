@@ -205,3 +205,27 @@ Each `fluxaorm.KafkaAlter` has the following fields:
 ::: tip
 See the [Kafka Topic Registration](/guide/kafka.html#topic-registration) page for the full builder API and detailed documentation.
 :::
+
+## Debezium Connector Alterations
+
+If you use Debezium CDC (via the `debezium` struct tag on entity ID fields), you can retrieve and apply pending Debezium connector changes with `GetDebeziumAlters()`:
+
+```go
+alters, err := fluxaorm.GetDebeziumAlters(ctx)
+if err != nil {
+    panic(err)
+}
+for _, alter := range alters {
+    fmt.Println(alter.Description) // e.g. "Create connector 'fluxa_default'"
+    err = alter.Exec(ctx)
+    if err != nil {
+        panic(err)
+    }
+}
+```
+
+`GetDebeziumAlters()` compares the desired Debezium connector state (based on registered entities with the `debezium` tag) against the actual state in Kafka Connect, and returns operations to create, update, or delete connectors. One connector is created per MySQL pool.
+
+::: tip
+See the [Debezium CDC](/guide/debezium.html) page for full details on setup, configuration, and consuming CDC events.
+:::

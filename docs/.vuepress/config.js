@@ -63,6 +63,7 @@ export default defineUserConfig({
             'clickhouse_queries',
             'clickhouse_schema',
             'kafka',
+            'debezium',
             'local_cache',
             'context_cache',
             'fake_delete',

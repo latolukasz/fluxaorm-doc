@@ -163,6 +163,18 @@ registry.RegisterKafkaTopic(
 
 See [Kafka Topic Registration](/guide/kafka.html#topic-registration) for the full builder API and schema management details.
 
+### Debezium Connect
+
+Register the Debezium (Kafka Connect) REST API URL to enable CDC connector management for a Kafka pool:
+
+```go
+registry.RegisterDebeziumConnectURL("http://localhost:8083", "events")
+```
+
+The first argument is the Kafka Connect REST API base URL, and the second is the Kafka pool code. Entities tagged with `debezium` (or `debezium=poolCode`) on their `ID` field will have their MySQL table changes streamed to Kafka topics via Debezium connectors.
+
+See the [Debezium CDC](/guide/debezium.html) page for full setup and usage details.
+
 ## Registering Async Flush
 
 Register Kafka-based async flush for non-critical writes. This enables `ctx.FlushAsync(true)` and `ctx.FlushAsync(false)` to publish SQL operations to a Kafka topic instead of executing them immediately:

@@ -403,6 +403,7 @@ All `orm` struct tags available in v2:
 | `decimal=X,Y` | Use MySQL `decimal(X,Y)` for floats |
 | `unsigned` | Unsigned float column |
 | `mediumint` | Use MySQL `mediumint` for int32/uint32 |
+| `debezium` / `debezium=pool` | Enable Debezium CDC streaming to Kafka (on `ID` field); defaults to default Kafka pool |
 | `searchable` | Include field in Redis Search index |
 | `sortable` | Make field sortable in Redis Search |
 | `ignore` | Do not store this field in MySQL |
