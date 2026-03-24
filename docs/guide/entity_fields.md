@@ -565,6 +565,58 @@ type UserEntity struct {
 
 Each array element is stored in a separate MySQL column. The example above creates columns like `Alias_1 varchar(255)`, `Alias_2 varchar(255)`, `Alias_3 varchar(255)`, and so on.
 
+## JSON Struct Fields
+
+When a field is a **pointer to a struct** (and the struct is not a registered entity), FluxaORM stores the entire struct as a single JSON-serialized `TEXT` column in MySQL:
+
+```go
+type Address struct {
+    Street string
+    City   string
+    Zip    string
+}
+
+type UserEntity struct {
+    ID      uint64
+    Address *Address
+}
+```
+
+| Go Type | MySQL Type |
+|---------|-----------|
+| *Struct | text DEFAULT NULL |
+
+This is different from [value struct fields](#subfields-embedded-structs) which flatten each struct field into a separate column. Pointer-to-struct fields are stored as a single JSON text column.
+
+The generated setter accepts a pointer to the struct and serializes it to JSON. Passing `nil` stores `NULL` in the database:
+
+```go
+user := entities.UserEntityProvider.New(ctx)
+user.SetAddress(&models.Address{
+    Street: "123 Main St",
+    City:   "Springfield",
+    Zip:    "62701",
+})
+
+// Set to NULL
+user.SetAddress(nil)
+```
+
+The generated getter returns a pointer to the struct. If the stored value is `NULL` or empty, it returns `nil`:
+
+```go
+addr := user.GetAddress()  // returns *models.Address or nil
+if addr != nil {
+    fmt.Println(addr.City)
+}
+```
+
+When Redis caching is enabled, the JSON string is stored as-is in the Redis cache.
+
+::: tip
+Only exported (uppercase) struct fields are included in JSON serialization. Unexported fields are silently skipped.
+:::
+
 ## Ignored Fields
 
 To exclude a public field from MySQL storage, use the `orm:"ignore"` tag:
