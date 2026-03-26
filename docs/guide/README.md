@@ -88,11 +88,11 @@ func main() {
         fmt.Println(user.GetAge())   // 30
     }
 
-    // Search with WHERE clause
-    users, err := entities.UserEntityProvider.Search(
-        ctx,
-        fluxaorm.NewWhere("`Age` >= ?", 18),
-        nil,
+    // Search with type-safe query builder
+    users, err := entities.UserEntityProvider.SearchMany(ctx,
+        fluxaorm.NewQuery().
+            Filter(entities.UserEntityProvider.Fields.Age.Gte(18)).
+            SortByASC(entities.UserEntityProvider.Fields.Name),
     )
     if err != nil {
         panic(err)

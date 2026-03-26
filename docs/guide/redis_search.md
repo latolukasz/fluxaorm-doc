@@ -25,7 +25,7 @@ By default, indexed fields are not sortable. Add the `sortable` tag to make a fi
 type UserEntity struct {
     ID        uint64
     Name      string `orm:"required;searchable"`
-    Age       uint32 `orm:"searchable;sortable"` // can be used in SortBy()
+    Age       uint32 `orm:"searchable;sortable"` // can be used in SortByASC/SortByDESC
     CreatedAt time.Time `orm:"searchable"`        // NOT sortable
 }
 ```
@@ -71,7 +71,7 @@ If `alter.Exec(ctx)` modifies the current index (e.g., adds a new field), the pr
 
 ## Reindexing
 
-FluxaORM automatically updates the Redis Search index when you add, update, or delete an entity via `Flush()`, `FlushAsync(true)`, or `FlushAsync(false)`. When an entity is **updated**, only the fields that actually changed are written to the Redis hash via `HSET` — unchanged fields are left untouched. Nullable fields that become `NULL` are removed from the hash via `HDEL`. This partial update approach is more efficient than rebuilding the entire hash on every edit.
+FluxaORM automatically updates the Redis Search index when you add, update, or delete an entity via `Flush()`, `FlushAsync(true)`, or `FlushAsync(false)`. When an entity is **updated**, only the fields that actually changed are written to the Redis hash via `HSET` -- unchanged fields are left untouched. Nullable fields that become `NULL` are removed from the hash via `HDEL`. This partial update approach is more efficient than rebuilding the entire hash on every edit.
 
 Full hash rebuilds (delete + recreate) only occur during insert, delete, un-delete (restoring a fake-deleted entity), index schema changes via `GetRedisSearchAlters()`, or manual reindex.
 
@@ -86,144 +86,143 @@ if err != nil {
 
 This scans all rows in MySQL and rebuilds the Redis Search hashes. For large tables, this operation can take some time.
 
+## Typed Redis Search Fields
+
+After code generation, each Provider with Redis Search enabled has a `FieldsRedisSearch` struct containing typed field definitions for every searchable column. These fields are used with the `NewRedisSearchQuery()` builder.
+
+```go
+// Given this entity definition:
+type ProductEntity struct {
+    ID    uint64
+    Name  string  `orm:"required;searchable"`
+    Price float64 `orm:"searchable;sortable"`
+    Age   uint32  `orm:"searchable;sortable"`
+    Status string `orm:"enum=active,inactive;searchable"`
+}
+
+// After code generation, ProductProvider.FieldsRedisSearch contains:
+// ProductProvider.FieldsRedisSearch.Name   → fluxaorm.RedisSearchTextField
+// ProductProvider.FieldsRedisSearch.Price  → fluxaorm.RedisSearchNumericField
+// ProductProvider.FieldsRedisSearch.Age    → fluxaorm.RedisSearchNumericField
+// ProductProvider.FieldsRedisSearch.Status → fluxaorm.RedisSearchTagField
+```
+
+### Redis Search Field Types
+
+| Type | Methods | Description |
+|------|---------|-------------|
+| `RedisSearchNumericField` | `Eq(float64)`, `Gte(float64)`, `Lte(float64)`, `Gt(float64)`, `Lt(float64)`, `Between(min, max float64)` | For all numeric Go types (int, uint, float, bool, time.Time, Reference) |
+| `RedisSearchTextField` | `Match(string)` | Full-text search on string fields |
+| `RedisSearchTagField` | `In(...string)` | Exact tag match on enum and set fields |
+
 ## Building Search Queries
 
-Use `fluxaorm.NewRedisSearchWhere()` to build Redis Search query conditions:
+Use `fluxaorm.NewRedisSearchQuery()` to build Redis Search queries with the typed field definitions:
 
 ```go
 import "github.com/latolukasz/fluxaorm/v2"
 
-where := fluxaorm.NewRedisSearchWhere()
+query := fluxaorm.NewRedisSearchQuery().
+    Filter(
+        entities.ProductProvider.FieldsRedisSearch.Age.Gte(18),
+        entities.ProductProvider.FieldsRedisSearch.Status.In("active"),
+    ).
+    SortByDESC(entities.ProductProvider.FieldsRedisSearch.Price).
+    Pager(fluxaorm.NewPager(1, 100))
 ```
 
-An empty `RedisSearchWhere` matches all documents (equivalent to `*` in Redis Search syntax).
+An empty query (no filters) matches all documents (equivalent to `*` in Redis Search syntax).
+
+### Filter
+
+`Filter()` accepts one or more typed Redis Search conditions. Multiple conditions are combined with AND logic (space-separated in Redis Search syntax):
+
+```go
+query := fluxaorm.NewRedisSearchQuery().Filter(
+    entities.ProductProvider.FieldsRedisSearch.Price.Gte(10.0),
+    entities.ProductProvider.FieldsRedisSearch.Price.Lte(100.0),
+    entities.ProductProvider.FieldsRedisSearch.Status.In("active"),
+)
+```
 
 ### Numeric Conditions
 
-There are separate typed methods for `uint64`, `int64`, and `float64` values. Use the variant that matches your field's Go type:
-
-**Uint64 methods** (for `uint`, `uint8`, `uint16`, `uint32`, `uint64` fields):
+Use `RedisSearchNumericField` methods for numeric filtering:
 
 ```go
-// Exact match: Age = 25
-where := fluxaorm.NewRedisSearchWhere().Uint64Equal("Age", 25)
+// Exact match: Price = 9.5
+entities.ProductProvider.FieldsRedisSearch.Price.Eq(9.5)
 
-// Range: Age between 18 and 65
-where = fluxaorm.NewRedisSearchWhere().Uint64Range("Age", 18, 65)
+// Greater than or equal: Age >= 18
+entities.ProductProvider.FieldsRedisSearch.Age.Gte(18)
 
-// Minimum: Age >= 18
-where = fluxaorm.NewRedisSearchWhere().Uint64Min("Age", 18)
+// Less than or equal: Price <= 99.99
+entities.ProductProvider.FieldsRedisSearch.Price.Lte(99.99)
 
-// Maximum: Age <= 100
-where = fluxaorm.NewRedisSearchWhere().Uint64Max("Age", 100)
-```
+// Greater than: Age > 18
+entities.ProductProvider.FieldsRedisSearch.Age.Gt(18)
 
-**Int64 methods** (for `int`, `int8`, `int16`, `int32`, `int64` fields):
+// Less than: Price < 100
+entities.ProductProvider.FieldsRedisSearch.Price.Lt(100)
 
-```go
-// Exact match: Balance = -50
-where := fluxaorm.NewRedisSearchWhere().Int64Equal("Balance", -50)
-
-// Range: Balance between -100 and 100
-where = fluxaorm.NewRedisSearchWhere().Int64Range("Balance", -100, 100)
-
-// Minimum: Balance >= 0
-where = fluxaorm.NewRedisSearchWhere().Int64Min("Balance", 0)
-
-// Maximum: Balance <= 1000
-where = fluxaorm.NewRedisSearchWhere().Int64Max("Balance", 1000)
-```
-
-**Float64 methods** (for `float32`, `float64` fields):
-
-```go
-// Exact match: Score = 9.5
-where := fluxaorm.NewRedisSearchWhere().Float64Equal("Score", 9.5)
-
-// Range: Price between 10.50 and 99.99
-where = fluxaorm.NewRedisSearchWhere().Float64Range("Price", 10.50, 99.99)
-
-// Minimum: Price >= 5.0
-where = fluxaorm.NewRedisSearchWhere().Float64Min("Price", 5.0)
-
-// Maximum: Price <= 99.99
-where = fluxaorm.NewRedisSearchWhere().Float64Max("Price", 99.99)
+// Range: Price between 10.50 and 99.99 (inclusive)
+entities.ProductProvider.FieldsRedisSearch.Price.Between(10.50, 99.99)
 ```
 
 ### Tag Conditions
 
-Tag conditions match exact values. You can provide multiple values (OR logic):
+Use `RedisSearchTagField` for exact value matching on enum fields. Multiple values use OR logic:
 
 ```go
 // Status is "active"
-where := fluxaorm.NewRedisSearchWhere().Tag("Status", "active")
+entities.ProductProvider.FieldsRedisSearch.Status.In("active")
 
 // Status is "active" OR "pending"
-where = fluxaorm.NewRedisSearchWhere().Tag("Status", "active", "pending")
+entities.ProductProvider.FieldsRedisSearch.Status.In("active", "pending")
 ```
 
 ### Text Conditions
 
-Text conditions perform full-text search on TEXT fields:
+Use `RedisSearchTextField` for full-text search:
 
 ```go
 // Full-text search on Name
-where := fluxaorm.NewRedisSearchWhere().Text("Name", "alice")
-```
-
-### Boolean Conditions
-
-```go
-// Active = true
-where := fluxaorm.NewRedisSearchWhere().Bool("Active", true)
-
-// Active = false
-where = fluxaorm.NewRedisSearchWhere().Bool("Active", false)
-```
-
-### Combining Conditions
-
-Multiple conditions are combined with AND logic (space-separated in Redis Search syntax). Chain the builder methods:
-
-```go
-where := fluxaorm.NewRedisSearchWhere().
-    Uint64Min("Age", 18).
-    Tag("Status", "active").
-    Float64Max("Price", 100)
+entities.ProductProvider.FieldsRedisSearch.Name.Match("laptop")
 ```
 
 ### Sorting
 
-Use `SortBy()` to sort results by a sortable field:
+Use `SortByASC()` or `SortByDESC()` with a sortable field:
 
 ```go
 // Sort by Age ascending
-where := fluxaorm.NewRedisSearchWhere().
-    Uint64Min("Age", 18).
-    SortBy("Age", true)
+query := fluxaorm.NewRedisSearchQuery().
+    Filter(entities.ProductProvider.FieldsRedisSearch.Age.Gte(18)).
+    SortByASC(entities.ProductProvider.FieldsRedisSearch.Age)
 
 // Sort by Price descending
-where = fluxaorm.NewRedisSearchWhere().
-    Tag("Status", "active").
-    SortBy("Price", false)
+query = fluxaorm.NewRedisSearchQuery().
+    Filter(entities.ProductProvider.FieldsRedisSearch.Status.In("active")).
+    SortByDESC(entities.ProductProvider.FieldsRedisSearch.Price)
 ```
 
 ::: tip
-Only fields with the `sortable` tag can be used in `SortBy()`.
+Only fields with the `sortable` tag can be used in `SortByASC()` and `SortByDESC()`.
 :::
 
 ## Searching for Entities
 
-Use the `SearchInRedis()` method on the Provider to find entities using the Redis Search index:
+Use `SearchManyInRedis()` on the Provider to find entities using the Redis Search index:
 
 ```go
 import "github.com/latolukasz/fluxaorm/v2"
 
-where := fluxaorm.NewRedisSearchWhere().
-    Uint64Min("Age", 18).
-    SortBy("Age", true)
-
-products, err := ProductProvider.SearchInRedis(ctx, where, fluxaorm.NewPager(1, 100))
+products, err := entities.ProductProvider.SearchManyInRedis(ctx,
+    fluxaorm.NewRedisSearchQuery().
+        Filter(entities.ProductProvider.FieldsRedisSearch.Age.Gte(18)).
+        SortByASC(entities.ProductProvider.FieldsRedisSearch.Age).
+        Pager(fluxaorm.NewPager(1, 100)),
+)
 if err != nil {
     // handle error
 }
@@ -232,23 +231,30 @@ for _, product := range products {
 }
 ```
 
-The `Pager` argument is optional. Pass `nil` to retrieve all matching results (up to 10,000):
+Pass a query without a `Pager` to retrieve all matching results (up to 10,000):
 
 ```go
-products, err := ProductProvider.SearchInRedis(ctx, where, nil)
+products, err := entities.ProductProvider.SearchManyInRedis(ctx,
+    fluxaorm.NewRedisSearchQuery().
+        Filter(entities.ProductProvider.FieldsRedisSearch.Age.Gte(18)),
+)
 ```
 
 **Signature:**
 ```go
-func (p XxxProvider) SearchInRedis(ctx fluxaorm.Context, where *fluxaorm.RedisSearchWhere, pager *fluxaorm.Pager) ([]*XxxEntity, error)
+func (p XxxProvider) SearchManyInRedis(ctx fluxaorm.Context, query *fluxaorm.RedisSearchQuery) ([]*XxxEntity, error)
 ```
 
 ## Searching with Total Count
 
-Use `SearchInRedisWithCount()` to get both the results and the total number of matching documents:
+Use `SearchManyInRedisWithTotal()` to get both the results and the total number of matching documents:
 
 ```go
-products, total, err := ProductProvider.SearchInRedisWithCount(ctx, where, fluxaorm.NewPager(1, 100))
+products, total, err := entities.ProductProvider.SearchManyInRedisWithTotal(ctx,
+    fluxaorm.NewRedisSearchQuery().
+        Filter(entities.ProductProvider.FieldsRedisSearch.Status.In("active")).
+        Pager(fluxaorm.NewPager(1, 100)),
+)
 if err != nil {
     // handle error
 }
@@ -257,7 +263,7 @@ fmt.Printf("Showing %d of %d total products\n", len(products), total)
 
 **Signature:**
 ```go
-func (p XxxProvider) SearchInRedisWithCount(ctx fluxaorm.Context, where *fluxaorm.RedisSearchWhere, pager *fluxaorm.Pager) ([]*XxxEntity, int, error)
+func (p XxxProvider) SearchManyInRedisWithTotal(ctx fluxaorm.Context, query *fluxaorm.RedisSearchQuery) ([]*XxxEntity, int, error)
 ```
 
 ## Searching for a Single Entity
@@ -265,7 +271,10 @@ func (p XxxProvider) SearchInRedisWithCount(ctx fluxaorm.Context, where *fluxaor
 Use `SearchOneInRedis()` to retrieve a single matching entity:
 
 ```go
-product, found, err := ProductProvider.SearchOneInRedis(ctx, fluxaorm.NewRedisSearchWhere().Uint64Equal("Age", 25))
+product, found, err := entities.ProductProvider.SearchOneInRedis(ctx,
+    fluxaorm.NewRedisSearchQuery().
+        Filter(entities.ProductProvider.FieldsRedisSearch.Age.Eq(25)),
+)
 if err != nil {
     // handle error
 }
@@ -282,70 +291,21 @@ This method always uses `LIMIT 0 1`. If more than one document matches, only the
 
 **Signature:**
 ```go
-func (p XxxProvider) SearchOneInRedis(ctx fluxaorm.Context, where *fluxaorm.RedisSearchWhere) (*XxxEntity, bool, error)
-```
-
-## Searching for Primary Keys
-
-If you only need entity IDs, use `SearchIDsInRedis()`:
-
-```go
-ids, err := ProductProvider.SearchIDsInRedis(ctx, fluxaorm.NewRedisSearchWhere().Float64Min("Price", 50), nil)
-if err != nil {
-    // handle error
-}
-for _, id := range ids {
-    fmt.Printf("Product ID: %d\n", id)
-}
-```
-
-**Signature:**
-```go
-func (p XxxProvider) SearchIDsInRedis(ctx fluxaorm.Context, where *fluxaorm.RedisSearchWhere, pager *fluxaorm.Pager) ([]uint64, error)
-```
-
-With total count:
-
-```go
-ids, total, err := ProductProvider.SearchIDsInRedisWithCount(ctx, fluxaorm.NewRedisSearchWhere().Tag("Status", "active"), fluxaorm.NewPager(1, 50))
-if err != nil {
-    // handle error
-}
-fmt.Printf("Found %d IDs out of %d total\n", len(ids), total)
-```
-
-**Signature:**
-```go
-func (p XxxProvider) SearchIDsInRedisWithCount(ctx fluxaorm.Context, where *fluxaorm.RedisSearchWhere, pager *fluxaorm.Pager) ([]uint64, int, error)
+func (p XxxProvider) SearchOneInRedis(ctx fluxaorm.Context, query *fluxaorm.RedisSearchQuery) (*XxxEntity, bool, error)
 ```
 
 ## Summary
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `SearchInRedis` | `([]*XxxEntity, error)` | Entities matching the query |
-| `SearchInRedisWithCount` | `([]*XxxEntity, int, error)` | Entities + total count |
+| `SearchManyInRedis` | `([]*XxxEntity, error)` | Entities matching the query |
+| `SearchManyInRedisWithTotal` | `([]*XxxEntity, int, error)` | Entities + total count |
 | `SearchOneInRedis` | `(*XxxEntity, bool, error)` | Single entity (LIMIT 1) |
-| `SearchIDsInRedis` | `([]uint64, error)` | Primary keys only |
-| `SearchIDsInRedisWithCount` | `([]uint64, int, error)` | Primary keys + total count |
 
-### RedisSearchWhere Builder Methods
+### Redis Search Field Types
 
-| Method | Description |
-|--------|-------------|
-| `Uint64Equal(field, value)` | Exact match (unsigned integers) |
-| `Uint64Range(field, min, max)` | Range, inclusive (unsigned integers) |
-| `Uint64Min(field, min)` | Greater than or equal to (unsigned integers) |
-| `Uint64Max(field, max)` | Less than or equal to (unsigned integers) |
-| `Int64Equal(field, value)` | Exact match (signed integers) |
-| `Int64Range(field, min, max)` | Range, inclusive (signed integers) |
-| `Int64Min(field, min)` | Greater than or equal to (signed integers) |
-| `Int64Max(field, max)` | Less than or equal to (signed integers) |
-| `Float64Equal(field, value)` | Exact match (floats) |
-| `Float64Range(field, min, max)` | Range, inclusive (floats) |
-| `Float64Min(field, min)` | Greater than or equal to (floats) |
-| `Float64Max(field, max)` | Less than or equal to (floats) |
-| `Tag(field, values...)` | Exact tag match (OR for multiple values) |
-| `Text(field, query)` | Full-text search |
-| `Bool(field, value)` | Boolean match |
-| `SortBy(field, ascending)` | Sort results by a sortable field |
+| Type | Methods | Description |
+|------|---------|-------------|
+| `RedisSearchNumericField` | `Eq(float64)`, `Gte(float64)`, `Lte(float64)`, `Gt(float64)`, `Lt(float64)`, `Between(min, max float64)` | Numeric comparisons and ranges |
+| `RedisSearchTextField` | `Match(string)` | Full-text search |
+| `RedisSearchTagField` | `In(...string)` | Exact tag match (OR for multiple values) |

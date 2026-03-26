@@ -1,6 +1,6 @@
 # MySQL Indexes
 
-In FluxaORM v2, unique indexes are defined directly on entity struct fields using the `orm:"unique=IndexName"` tag. There is no separate `IndexDefinition` struct or `IndexInterface` to implement. After code generation, each unique index produces a typed `GetByIndex<Name>()` method on the Provider.
+In FluxaORM v2, unique indexes are defined directly on entity struct fields using the `orm:"unique=IndexName"` tag. There is no separate `IndexDefinition` struct or `IndexInterface` to implement. After code generation, unique indexes are automatically detected by `SearchOne()` when filter conditions match an index.
 
 ## Defining Unique Indexes
 
@@ -19,10 +19,14 @@ This creates a unique index named `Email` on the `Email` column:
 UNIQUE KEY `Email` (`Email`)
 ```
 
-After code generation, you get a typed lookup method:
+After code generation, you can look up entities by unique indexes using `SearchOne()`. When the filter conditions match a cached unique index, `SearchOne()` automatically uses the optimized cached lookup:
 
 ```go
-user, found, err := entities.UserEntityProvider.GetByIndexEmail(ctx, "alice@example.com")
+user, found, err := entities.UserEntityProvider.SearchOne(ctx,
+    fluxaorm.NewQuery().Filter(
+        entities.UserEntityProvider.Fields.Email.Is("alice@example.com"),
+    ),
+)
 if err != nil {
     // handle error
 }
@@ -30,8 +34,6 @@ if found {
     fmt.Println(user.GetName())
 }
 ```
-
-The `GetByIndex<Name>()` method returns `(entity, found, err)` -- the same pattern as `GetByID()`.
 
 ## Composite Unique Indexes
 
@@ -53,10 +55,15 @@ UNIQUE KEY `NameAge` (`Name`, `Age`),
 UNIQUE KEY `Email` (`Email`)
 ```
 
-After code generation, the composite index produces a method that accepts all index columns in order:
+After code generation, look up entities by composite indexes by filtering on all index columns:
 
 ```go
-user, found, err := entities.UserEntityProvider.GetByIndexNameAge(ctx, "Alice", 30)
+user, found, err := entities.UserEntityProvider.SearchOne(ctx,
+    fluxaorm.NewQuery().Filter(
+        entities.UserEntityProvider.Fields.Name.Is("Alice"),
+        entities.UserEntityProvider.Fields.Age.Eq(30),
+    ),
+)
 ```
 
 ### Position Rules
@@ -83,12 +90,18 @@ UNIQUE KEY `CustomerOrder` (`CustomerID`, `Year`, `OrderNum`)
 ```
 
 ```go
-order, found, err := entities.OrderEntityProvider.GetByIndexCustomerOrder(ctx, customerID, 2025, 1001)
+order, found, err := entities.OrderEntityProvider.SearchOne(ctx,
+    fluxaorm.NewQuery().Filter(
+        entities.OrderEntityProvider.Fields.CustomerID.Eq(customerID),
+        entities.OrderEntityProvider.Fields.Year.Eq(2025),
+        entities.OrderEntityProvider.Fields.OrderNum.Eq(1001),
+    ),
+)
 ```
 
 ## Cached Unique Indexes
 
-By default, `GetByIndex<Name>()` queries MySQL directly every time it is called. For frequently accessed indexes, you can enable caching by adding the `cached` tag to the **first** column of the index:
+By default, `SearchOne()` with unique index conditions queries MySQL directly every time it is called. For frequently accessed indexes, you can enable caching by adding the `cached` tag to the **first** column of the index:
 
 ```go
 type UserEntity struct {
@@ -99,7 +112,7 @@ type UserEntity struct {
 }
 ```
 
-When an index is cached, `GetByIndex<Name>()` works as follows:
+When an index is cached, `SearchOne()` automatically detects that the filter conditions match the cached index and works as follows:
 
 1. Check Redis for the cached index-to-ID mapping
 2. If found, load the entity via `GetByID()` (which itself benefits from Redis entity cache)
@@ -129,27 +142,27 @@ type ProductEntity struct {
 }
 ```
 
-Even without `orm:"redisCache"` on the `ID` field, the `GetByIndexCode()` method caches the resolved entity ID in Redis to avoid repeated MySQL index lookups.
+Even without `orm:"redisCache"` on the `ID` field, `SearchOne()` caches the resolved entity ID in Redis when filtering by the `Code` index columns, avoiding repeated MySQL index lookups.
 
 ## Parameter Types
 
-The generated `GetByIndex<Name>()` methods use widened Go types for their parameters, matching the getter return types:
+The typed field definitions on the Provider use widened Go types, matching the getter return types:
 
-| Field Go Type | Index Parameter Type |
-|--------------|---------------------|
-| uint8, uint16, uint32, uint64 | uint64 |
-| int8, int16, int32, int64 | int64 |
-| float32, float64 | float64 |
-| string | string |
-| bool | bool |
-| time.Time | time.Time |
-| enum field | enums.EnumType |
-| Reference (required) | uint64 |
-| *uint, *int, etc. | *uint64, *int64, etc. |
-| Reference (optional) | uint64 |
+| Field Go Type | Field Type | Eq/Is Parameter Type |
+|--------------|-----------|---------------------|
+| uint8, uint16, uint32, uint64 | `UintField` | uint64 |
+| int8, int16, int32, int64 | `IntField` | int64 |
+| float32, float64 | `FloatField` | float64 |
+| string | `StringField` | string |
+| bool | `BoolField` | bool |
+| time.Time | `TimeField` | time.Time |
+| enum field | `EnumField` | string |
+| Reference (required) | `ReferenceField` | uint64 |
+| *uint, *int, etc. | `NullableUintField`, etc. | uint64, int64, etc. |
+| Reference (optional) | `NullableReferenceField` | uint64 |
 
 ::: tip Time Truncation
-When a unique index includes a `time.Time` column, the generated `GetByIndex<Name>()` method automatically truncates the parameter before querying. DateTime fields (tagged with `orm:"time"`, or the built-in `CreatedAt`/`UpdatedAt` columns) are truncated to second precision. Date fields are truncated to day precision. This matches the truncation applied by setter methods, ensuring lookups always find the stored row regardless of sub-second or sub-day precision in the input value.
+When a unique index includes a `time.Time` column, the generated code automatically truncates the parameter before querying. DateTime fields (tagged with `orm:"time"`, or the built-in `CreatedAt`/`UpdatedAt` columns) are truncated to second precision. Date fields are truncated to day precision. This matches the truncation applied by setter methods, ensuring lookups always find the stored row regardless of sub-second or sub-day precision in the input value.
 :::
 
 ## Complete Example
@@ -187,19 +200,37 @@ type ProductEntity struct {
 After code generation:
 
 ```go
-// Single-column cached lookups
-cat, found, err := entities.CategoryEntityProvider.GetByIndexName(ctx, "Electronics")
-cat, found, err = entities.CategoryEntityProvider.GetByIndexSlug(ctx, "electronics")
+// Single-column cached lookups (auto-detected by SearchOne)
+cat, found, err := entities.CategoryEntityProvider.SearchOne(ctx,
+    fluxaorm.NewQuery().Filter(entities.CategoryEntityProvider.Fields.Name.Is("Electronics")),
+)
+cat, found, err = entities.CategoryEntityProvider.SearchOne(ctx,
+    fluxaorm.NewQuery().Filter(entities.CategoryEntityProvider.Fields.Slug.Is("electronics")),
+)
 
 // Composite cached lookups
-user, found, err := entities.UserEntityProvider.GetByIndexNameCountry(ctx, "Alice", "US")
+user, found, err := entities.UserEntityProvider.SearchOne(ctx,
+    fluxaorm.NewQuery().Filter(
+        entities.UserEntityProvider.Fields.Name.Is("Alice"),
+        entities.UserEntityProvider.Fields.Country.Is("US"),
+    ),
+)
 
 // Single-column cached lookup
-user, found, err = entities.UserEntityProvider.GetByIndexEmail(ctx, "alice@example.com")
+user, found, err = entities.UserEntityProvider.SearchOne(ctx,
+    fluxaorm.NewQuery().Filter(entities.UserEntityProvider.Fields.Email.Is("alice@example.com")),
+)
 
 // Non-cached lookups (hit MySQL every time)
-product, found, err := entities.ProductEntityProvider.GetByIndexSKU(ctx, "MOUSE-001")
+product, found, err := entities.ProductEntityProvider.SearchOne(ctx,
+    fluxaorm.NewQuery().Filter(entities.ProductEntityProvider.Fields.SKU.Is("MOUSE-001")),
+)
 
 // Composite with reference
-product, found, err = entities.ProductEntityProvider.GetByIndexCategorySlug(ctx, categoryID, "wireless-mouse")
+product, found, err = entities.ProductEntityProvider.SearchOne(ctx,
+    fluxaorm.NewQuery().Filter(
+        entities.ProductEntityProvider.Fields.Category.Eq(categoryID),
+        entities.ProductEntityProvider.Fields.Slug.Is("wireless-mouse"),
+    ),
+)
 ```

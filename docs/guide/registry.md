@@ -233,7 +233,7 @@ if err != nil {
 
 This produces one `.go` file per entity in the output directory, containing:
 
-- A typed `XxxProvider` singleton with methods like `GetByID`, `GetByIDs`, `New`, `Search`, `SearchOne`, and more
+- A typed `XxxProvider` singleton with methods like `GetByID`, `GetByIDs`, `New`, `SearchMany`, `SearchOne`, and more
 - A typed `XxxEntity` struct with `GetXxx()` / `SetXxx()` methods for each field, with built-in dirty tracking
 - An `XxxSQLRow` struct for efficient, reflection-free database scanning
 

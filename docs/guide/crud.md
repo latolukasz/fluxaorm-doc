@@ -4,7 +4,7 @@ In the previous sections, you learned how to configure FluxaORM and update the M
 
 In FluxaORM v2, all CRUD operations go through **generated Provider singletons** and **entity methods**. After defining your entity structs and running the code generator, each entity gets:
 
-- A `XxxProvider` variable with methods like `New()`, `GetByID()`, `GetByIDs()`, `Search()`, etc.
+- A `XxxProvider` variable with methods like `New()`, `GetByID()`, `GetByIDs()`, `SearchMany()`, `SearchOne()`, etc.
 - A `XxxEntity` struct with typed getter/setter methods like `GetName()`, `SetName()`, `Delete()`, etc.
 
 The following examples build upon this code base:
@@ -154,61 +154,44 @@ for _, product := range products {
 
 The return signature is `([]*XxxEntity, error)`. The returned slice contains only the entities that were found -- missing IDs are silently skipped. The order of results matches the order of the input IDs (excluding missing ones).
 
-### GetByIndex (Unique Index)
+### SearchMany
 
-If your entity has a unique index, the code generator creates a `GetByIndex<IndexName>()` method:
-
-```go
-// Given: Code string `orm:"required;length=10;unique=Code"`
-category, found, err := entities.CategoryEntityProvider.GetByIndexCode(ctx, "electronics")
-```
-
-### Search
-
-For general queries with WHERE clauses, use `Search()`:
+For general queries, use the type-safe query builder with `SearchMany()`:
 
 ```go
-products, err := entities.ProductEntityProvider.Search(
-    ctx,
-    fluxaorm.NewWhere("`Price` > ? AND `Category` = ?", 100.0, categoryID),
-    fluxaorm.NewPager(1, 20), // page 1, 20 results per page
+products, err := entities.ProductEntityProvider.SearchMany(ctx,
+    fluxaorm.NewQuery().
+        Filter(
+            entities.ProductEntityProvider.Fields.Price.Gt(100.0),
+            entities.ProductEntityProvider.Fields.Category.Eq(categoryID),
+        ).
+        Pager(fluxaorm.NewPager(1, 20)),
 )
 ```
 
 ### SearchOne
 
-To retrieve a single entity matching a WHERE clause:
+To retrieve a single entity matching a query. When filtering by a cached unique index, the cached lookup is used automatically:
 
 ```go
-product, found, err := entities.ProductEntityProvider.SearchOne(
-    ctx,
-    fluxaorm.NewWhere("`Name` = ?", "Laptop"),
+product, found, err := entities.ProductEntityProvider.SearchOne(ctx,
+    fluxaorm.NewQuery().Filter(
+        entities.ProductEntityProvider.Fields.Name.Is("Laptop"),
+    ),
 )
 ```
 
-### SearchWithCount
+### SearchManyWithTotal
 
 To get both results and total count (useful for pagination):
 
 ```go
-products, totalRows, err := entities.ProductEntityProvider.SearchWithCount(
-    ctx,
-    fluxaorm.NewWhere("`Category` = ?", categoryID),
-    fluxaorm.NewPager(1, 20),
+products, totalRows, err := entities.ProductEntityProvider.SearchManyWithTotal(ctx,
+    fluxaorm.NewQuery().
+        Filter(entities.ProductEntityProvider.Fields.Category.Eq(categoryID)).
+        Pager(fluxaorm.NewPager(1, 20)),
 )
 fmt.Printf("Showing %d of %d total products\n", len(products), totalRows)
-```
-
-### SearchIDs
-
-To retrieve only IDs without loading full entities:
-
-```go
-ids, err := entities.ProductEntityProvider.SearchIDs(
-    ctx,
-    fluxaorm.NewWhere("`Price` > ?", 50.0),
-    nil, // no pager, return all matching IDs
-)
 ```
 
 ## Updating Entities
@@ -241,12 +224,14 @@ err := ctx.Flush() // UPDATE only includes Price (if Name was unchanged)
 
 ### Tracking Entities from Search Results
 
-Entities returned by `GetByID()` and `GetByIDs()` are automatically placed in the context cache. However, entities returned by `Search()`, `SearchOne()`, and `SearchWithCount()` are **not** automatically tracked for flush.
+Entities returned by `GetByID()` and `GetByIDs()` are automatically placed in the context cache. However, entities returned by `SearchMany()`, `SearchOne()`, and `SearchManyWithTotal()` are **not** automatically tracked for flush.
 
 To update entities returned by search methods, you need to register them with the context using `ctx.Track()`:
 
 ```go
-products, _ := entities.ProductEntityProvider.Search(ctx, fluxaorm.NewWhere("`Price` > ?", 100.0), nil)
+products, _ := entities.ProductEntityProvider.SearchMany(ctx,
+    fluxaorm.NewQuery().Filter(entities.ProductEntityProvider.Fields.Price.Gt(100.0)),
+)
 for _, product := range products {
     product.SetPrice(product.GetPrice() * 0.9) // 10% discount
 }

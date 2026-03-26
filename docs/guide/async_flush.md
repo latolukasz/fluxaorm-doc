@@ -146,7 +146,7 @@ When `FlushAsync(true)` is called, cache updates happen immediately but SQL exec
 - `GetByUniqueIndex()` -- unique indexes are always cached in Redis
 
 **Does NOT return updated data until consumed:**
-- `Search()`, `SearchOne()`, `SearchIDs()`, `SearchWithCount()`, `SearchIDsWithCount()` -- these query MySQL directly, so they will not see the new data until the consumer has executed the SQL.
+- `SearchMany()`, `SearchOne()`, `SearchManyWithTotal()` -- these query MySQL directly, so they will not see the new data until the consumer has executed the SQL.
 
 ::: warning
 Entities without any cache (`redisCache` or `localCache`) will not be available via `GetByID()` or `GetByIDs()` until the consumer processes the SQL operations.
@@ -158,7 +158,7 @@ When `FlushAsync(false)` is called, **no** cache updates happen at call time. Al
 
 **No read operations return updated data until the consumer processes the event:**
 - `GetByID()`, `GetByIDs()`, `GetByUniqueIndex()` -- all return stale data until the consumer executes the Redis cache operations.
-- `Search()`, `SearchOne()`, `SearchIDs()`, `SearchWithCount()`, `SearchIDsWithCount()` -- return stale data until the consumer executes the SQL.
+- `SearchMany()`, `SearchOne()`, `SearchManyWithTotal()` -- return stale data until the consumer executes the SQL.
 
 ::: tip
 Use `FlushAsync(false)` when full cache-database consistency is more important than immediate read-after-write visibility. The consumer applies the Redis cache operations only after the SQL has been committed, so the cache always reflects committed data.

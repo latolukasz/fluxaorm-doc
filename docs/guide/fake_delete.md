@@ -49,15 +49,14 @@ err = ctx.Flush() // DELETE FROM `UserEntity` WHERE `ID` = 3
 
 ## Behavior of Fake-Deleted Entities
 
-Once an entity is fake-deleted, it is **excluded from search results** by default. All query methods that use a `WHERE` clause automatically add `AND FakeDelete = 0` to filter out deleted rows:
+Once an entity is fake-deleted, it is **excluded from search results** by default. All search methods automatically add `AND FakeDelete = 0` to filter out deleted rows:
 
-- `Search`
+- `SearchMany`
 - `SearchOne`
-- `SearchIDs`
-- `GetByIndex`
-- `GetByUniqueIndex`
-- `GetAll`
-- Redis Search queries
+- `SearchManyWithTotal`
+- `SearchManyInRedis`
+- `SearchOneInRedis`
+- `SearchManyInRedisWithTotal`
 
 However, `GetByID` and `GetByIDs` **will still return** fake-deleted entities. You can check whether an entity has been fake-deleted by reading its `FakeDelete` field:
 
@@ -70,12 +69,15 @@ if user.GetFakeDelete() {
 
 ## Including Fake-Deleted Entities in Search Results
 
-If you need to include fake-deleted entities in search results, use the `WithFakeDeletes()` method on the `Where` clause:
+If you need to include fake-deleted entities in search results, use `FilterWhere()` with `WithFakeDeletes()`:
 
 ```go
-where := fluxaorm.NewWhere("`Status` = ?", "active")
-where.WithFakeDeletes()
-users, err := UserEntityProvider.Search(ctx, where, fluxaorm.NewPager(1, 100)) // returns all matching entities, including fake-deleted ones
+users, err := UserEntityProvider.SearchMany(ctx,
+    fluxaorm.NewQuery().
+        Filter(UserEntityProvider.Fields.Status.Is("active")).
+        FilterWhere(fluxaorm.NewWhere("1").WithFakeDeletes()).
+        Pager(fluxaorm.NewPager(1, 100)),
+) // returns all matching entities, including fake-deleted ones
 ```
 
 Without `WithFakeDeletes()`, the same query would automatically filter out any rows where `FakeDelete = 1`.
@@ -94,7 +96,9 @@ user.Delete()
 err = ctx.Flush()
 
 // The user is excluded from normal searches
-users, err := UserEntityProvider.Search(ctx, fluxaorm.NewWhere("1"), fluxaorm.NewPager(1, 100))
+users, err := UserEntityProvider.SearchMany(ctx,
+    fluxaorm.NewQuery().Pager(fluxaorm.NewPager(1, 100)),
+)
 // users does not include Alice
 
 // But can still be loaded by ID
@@ -102,9 +106,11 @@ user, found, err := UserEntityProvider.GetByID(ctx, user.GetID())
 // found = true, user.GetFakeDelete() = true
 
 // Include deleted users in search
-where := fluxaorm.NewWhere("1")
-where.WithFakeDeletes()
-allUsers, err := UserEntityProvider.Search(ctx, where, fluxaorm.NewPager(1, 100))
+allUsers, err := UserEntityProvider.SearchMany(ctx,
+    fluxaorm.NewQuery().
+        FilterWhere(fluxaorm.NewWhere("1").WithFakeDeletes()).
+        Pager(fluxaorm.NewPager(1, 100)),
+)
 // allUsers includes Alice
 
 // Permanently remove the user

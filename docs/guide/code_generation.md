@@ -215,15 +215,20 @@ err := ctx.Flush()
 func (p userProvider) NewWithID(ctx fluxaorm.Context, id uint64) *UserEntity
 ```
 
-#### Search
+#### SearchMany
 
-Queries for entities matching a WHERE clause with optional pagination.
+Queries for entities matching a type-safe query built with `fluxaorm.NewQuery()`.
 
 ```go
-where := fluxaorm.NewWhere("`Age` > ? AND `Status` = ?", 18, "active")
-pager := &fluxaorm.Pager{CurrentPage: 1, PageSize: 20}
-
-users, err := entities.UserProvider.Search(ctx, where, pager)
+users, err := entities.UserProvider.SearchMany(ctx,
+    fluxaorm.NewQuery().
+        Filter(
+            entities.UserProvider.Fields.Age.Gt(18),
+            entities.UserProvider.Fields.Status.Is("active"),
+        ).
+        SortByDESC(entities.UserProvider.Fields.CreatedAt).
+        Pager(fluxaorm.NewPager(1, 20)),
+)
 if err != nil {
     return err
 }
@@ -234,88 +239,80 @@ for _, user := range users {
 
 **Signature:**
 ```go
-func (p userProvider) Search(ctx fluxaorm.Context, where fluxaorm.Where, pager *fluxaorm.Pager) ([]*UserEntity, error)
+func (p userProvider) SearchMany(ctx fluxaorm.Context, query *fluxaorm.DBQuery) ([]*UserEntity, error)
 ```
-
-Both `where` and `pager` can be `nil`. Passing `nil` for `where` returns all rows; passing `nil` for `pager` returns all matching rows without pagination.
 
 #### SearchOne
 
-Queries for a single entity matching a WHERE clause. Adds `LIMIT 1` automatically.
+Queries for a single entity matching the query. Adds `LIMIT 1` automatically. When the filter conditions match a cached unique index, the cached index lookup is used automatically.
 
 ```go
-where := fluxaorm.NewWhere("`Email` = ?", "alice@example.com")
-user, found, err := entities.UserProvider.SearchOne(ctx, where)
+user, found, err := entities.UserProvider.SearchOne(ctx,
+    fluxaorm.NewQuery().Filter(
+        entities.UserProvider.Fields.Email.Is("alice@example.com"),
+    ),
+)
 ```
 
 **Signature:**
 ```go
-func (p userProvider) SearchOne(ctx fluxaorm.Context, where fluxaorm.Where) (*UserEntity, bool, error)
+func (p userProvider) SearchOne(ctx fluxaorm.Context, query *fluxaorm.DBQuery) (*UserEntity, bool, error)
 ```
 
-#### SearchWithCount
+#### SearchManyWithTotal
 
-Like `Search`, but also returns the total number of matching rows (before pagination). Useful for building paginated UIs.
+Like `SearchMany`, but also returns the total number of matching rows (before pagination). Useful for building paginated UIs.
 
 ```go
-pager := &fluxaorm.Pager{CurrentPage: 2, PageSize: 10}
-users, total, err := entities.UserProvider.SearchWithCount(ctx, nil, pager)
+users, total, err := entities.UserProvider.SearchManyWithTotal(ctx,
+    fluxaorm.NewQuery().
+        Filter(entities.UserProvider.Fields.Status.Is("active")).
+        Pager(fluxaorm.NewPager(2, 10)),
+)
 // total = 150 (all matching rows), len(users) = 10 (current page)
 ```
 
 **Signature:**
 ```go
-func (p userProvider) SearchWithCount(ctx fluxaorm.Context, where fluxaorm.Where, pager *fluxaorm.Pager) ([]*UserEntity, int, error)
+func (p userProvider) SearchManyWithTotal(ctx fluxaorm.Context, query *fluxaorm.DBQuery) ([]*UserEntity, int, error)
 ```
 
-#### SearchIDs
+### Typed Fields
 
-Like `Search`, but returns only the entity IDs (not full entities). Useful when you only need IDs or want to minimize data transfer.
+Every Provider has a `Fields` struct containing typed field definitions for each column. These are used with `fluxaorm.NewQuery()` to build type-safe filters and sort clauses:
 
 ```go
-ids, err := entities.UserProvider.SearchIDs(ctx, where, pager)
+// Access typed fields on the Provider
+entities.UserProvider.Fields.ID        // fluxaorm.UintField
+entities.UserProvider.Fields.Name      // fluxaorm.StringField
+entities.UserProvider.Fields.Email     // fluxaorm.StringField
+entities.UserProvider.Fields.Age       // fluxaorm.UintField
+entities.UserProvider.Fields.Status    // fluxaorm.EnumField
+entities.UserProvider.Fields.CreatedAt // fluxaorm.TimeField
 ```
 
-**Signature:**
-```go
-func (p userProvider) SearchIDs(ctx fluxaorm.Context, where fluxaorm.Where, pager *fluxaorm.Pager) ([]uint64, error)
-```
-
-#### SearchIDsWithCount
-
-Like `SearchIDs`, but also returns the total count.
-
-```go
-ids, total, err := entities.UserProvider.SearchIDsWithCount(ctx, where, pager)
-```
-
-**Signature:**
-```go
-func (p userProvider) SearchIDsWithCount(ctx fluxaorm.Context, where fluxaorm.Where, pager fluxaorm.Pager) ([]uint64, int, error)
-```
-
-### Unique Index Getters
-
-If an entity has unique indexes defined, the generator creates `GetByIndex<IndexName>` methods on the Provider. These accept the index column values as parameters and return a single entity.
-
-```go
-user, found, err := entities.UserProvider.GetByIndexEmail(ctx, "alice@example.com")
-```
-
-If the unique index has Redis caching enabled (`cachedUnique` tag), the lookup first checks Redis before falling back to MySQL, and caches the result for future lookups.
+See the [Search](/guide/search.html) page for the full list of field types and their available methods.
 
 ### Redis Search Methods
 
-If an entity has Redis Search configured, additional methods are generated:
+If an entity has Redis Search configured, additional methods and fields are generated:
 
-- `SearchInRedis(ctx, where, pager)` -- search using Redis Search, returns full entities
-- `SearchOneInRedis(ctx, where)` -- search for a single entity using Redis Search
-- `SearchInRedisWithCount(ctx, where, pager)` -- search with total count
-- `SearchIDsInRedis(ctx, where, pager)` -- search returning only IDs
-- `SearchIDsInRedisWithCount(ctx, where, pager)` -- search IDs with total count
+- `SearchManyInRedis(ctx, query)` -- search using Redis Search, returns full entities
+- `SearchOneInRedis(ctx, query)` -- search for a single entity using Redis Search
+- `SearchManyInRedisWithTotal(ctx, query)` -- search with total count
 - `ReindexRedisSearch(ctx)` -- rebuild the entire Redis Search index from MySQL data
 
-These methods use `*fluxaorm.RedisSearchWhere` instead of `fluxaorm.Where`.
+These methods use `*fluxaorm.RedisSearchQuery` built with `fluxaorm.NewRedisSearchQuery()`.
+
+The Provider also has a `FieldsRedisSearch` struct containing typed Redis Search field definitions:
+
+```go
+entities.ProductProvider.FieldsRedisSearch.Name   // fluxaorm.RedisSearchTextField
+entities.ProductProvider.FieldsRedisSearch.Price  // fluxaorm.RedisSearchNumericField
+entities.ProductProvider.FieldsRedisSearch.Status // fluxaorm.RedisSearchTagField
+```
+
+See the [Redis Search](/guide/redis_search.html) page for details.
 
 ### Provider Interfaces
 
@@ -648,10 +645,13 @@ func main() {
         fmt.Println("Found user:", foundUser.GetName())
     }
 
-    // Search with conditions
-    where := fluxaorm.NewWhere("`Age` >= ?", 18)
-    pager := &fluxaorm.Pager{CurrentPage: 1, PageSize: 10}
-    users, err := entities.UserProvider.Search(ctx, where, pager)
+    // Search with type-safe query builder
+    users, err := entities.UserProvider.SearchMany(ctx,
+        fluxaorm.NewQuery().
+            Filter(entities.UserProvider.Fields.Age.Gte(18)).
+            SortByASC(entities.UserProvider.Fields.Name).
+            Pager(fluxaorm.NewPager(1, 10)),
+    )
     if err != nil {
         panic(err)
     }
@@ -659,8 +659,12 @@ func main() {
         fmt.Println(u.GetName(), u.GetEmail())
     }
 
-    // Unique index lookup
-    userByEmail, found, err := entities.UserProvider.GetByIndexEmail(ctx, "alice@example.com")
+    // Search by unique index (auto-detected via SearchOne)
+    userByEmail, found, err := entities.UserProvider.SearchOne(ctx,
+        fluxaorm.NewQuery().Filter(
+            entities.UserProvider.Fields.Email.Is("alice@example.com"),
+        ),
+    )
     if err != nil {
         panic(err)
     }

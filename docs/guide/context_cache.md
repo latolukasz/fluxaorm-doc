@@ -13,7 +13,7 @@ user, found, err = UserEntityProvider.GetByID(ctx, 1)  // served from context ca
 ```
 
 :::tip
-The context cache is only populated by `GetByID` and `GetByIDs`. Search methods (`Search`, `SearchOne`, `SearchIDs`, etc.) do **not** read from or write to the context cache.
+The context cache is only populated by `GetByID` and `GetByIDs`. Search methods (`SearchMany`, `SearchOne`, `SearchManyWithTotal`, etc.) do **not** read from or write to the context cache.
 :::
 
 ## TTL and Expiration

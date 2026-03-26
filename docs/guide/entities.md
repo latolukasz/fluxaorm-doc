@@ -64,7 +64,7 @@ The workflow is:
 
 After `Generate()` runs, you get a typed Provider and Entity for each registered struct. For example, registering `UserEntity` produces:
 
-- `entities.UserEntityProvider` -- a Provider variable with methods like `New()`, `GetByID()`, `Search()`, etc.
+- `entities.UserEntityProvider` -- a Provider variable with methods like `New()`, `GetByID()`, `SearchMany()`, `SearchOne()`, etc.
 - `entities.UserEntity` -- a generated Entity type with `GetName()`, `SetName()`, `GetEmail()`, `SetEmail()`, etc.
 
 ## MySQL Pool
@@ -178,7 +178,7 @@ type ProductEntity struct {
 }
 ```
 
-When `FakeDelete` is present, calling `entity.Delete()` sets the `FakeDelete` column to `1` instead of removing the row from MySQL. All generated query methods (`Search`, `SearchIDs`, etc.) automatically filter out soft-deleted rows unless you explicitly include them using `fluxaorm.NewWhere("1 = 1").WithFakeDeletes()`.
+When `FakeDelete` is present, calling `entity.Delete()` sets the `FakeDelete` column to `1` instead of removing the row from MySQL. All generated search methods (`SearchMany`, `SearchOne`, `SearchManyWithTotal`) automatically filter out soft-deleted rows unless you explicitly include them using `FilterWhere(fluxaorm.NewWhere("1").WithFakeDeletes())`.
 
 ## Automatic Timestamps
 
@@ -312,7 +312,7 @@ type ProductEntity struct {
 }
 ```
 
-After code generation, the Provider includes Redis Search methods like `SearchIDsInRedis()`, `SearchInRedis()`, and `SearchOneInRedis()`.
+After code generation, the Provider includes Redis Search methods like `SearchManyInRedis()`, `SearchOneInRedis()`, and `SearchManyInRedisWithTotal()`, along with a `FieldsRedisSearch` struct for type-safe query building.
 
 ## Unique Indexes
 
@@ -327,11 +327,21 @@ type UserEntity struct {
 }
 ```
 
-This creates two unique indexes: a composite `NameAge` index on `(Name, Age)` and a single-column `Email` index. After code generation, you get typed lookup methods:
+This creates two unique indexes: a composite `NameAge` index on `(Name, Age)` and a single-column `Email` index. After code generation, you can look up entities by unique indexes using `SearchOne()` -- it automatically detects cached unique indexes and uses the optimized lookup path:
 
 ```go
-user, found, err := entities.UserEntityProvider.GetByIndexNameAge(ctx, "Alice", 30)
-user, found, err := entities.UserEntityProvider.GetByIndexEmail(ctx, "alice@example.com")
+user, found, err := entities.UserEntityProvider.SearchOne(ctx,
+    fluxaorm.NewQuery().Filter(
+        entities.UserEntityProvider.Fields.Name.Is("Alice"),
+        entities.UserEntityProvider.Fields.Age.Eq(30),
+    ),
+)
+
+user, found, err = entities.UserEntityProvider.SearchOne(ctx,
+    fluxaorm.NewQuery().Filter(
+        entities.UserEntityProvider.Fields.Email.Is("alice@example.com"),
+    ),
+)
 ```
 
 See the [MySQL Indexes](/guide/mysql_indexes.html) page for full details on unique indexes and caching.
