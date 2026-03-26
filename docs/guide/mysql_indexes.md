@@ -1,15 +1,21 @@
 # MySQL Indexes
 
-In FluxaORM v2, unique indexes are defined directly on entity struct fields using the `orm:"unique=IndexName"` tag. There is no separate `IndexDefinition` struct or `IndexInterface` to implement. After code generation, unique indexes are automatically detected by `SearchOne()` when filter conditions match an index.
+In FluxaORM v2, indexes are defined by implementing interfaces on your entity struct. There are three interfaces available: `EntityUniqueIndexes` for unique indexes, `EntityCachedUniqueIndexes` for cached unique indexes, and `EntityIndexes` for non-unique indexes. After code generation, unique indexes are automatically detected by `SearchOne()` when filter conditions match an index.
 
 ## Defining Unique Indexes
 
-Add the `orm:"unique=IndexName"` tag to any field to include it in a unique index:
+Implement the `EntityUniqueIndexes` interface on your entity struct. The method returns a map where each key is the index name and the value is an ordered slice of column names:
 
 ```go
 type UserEntity struct {
     ID    uint64
-    Email string `orm:"required;unique=Email"`
+    Email string `orm:"required"`
+}
+
+func (e UserEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{
+        "Email": {"Email"},
+    }
 }
 ```
 
@@ -37,18 +43,25 @@ if found {
 
 ## Composite Unique Indexes
 
-To create an index that spans multiple columns, give them the same index name and use a position suffix to control column order:
+To create an index that spans multiple columns, list the column names in the desired order:
 
 ```go
 type UserEntity struct {
     ID    uint64
-    Name  string `orm:"required;unique=NameAge"`
-    Age   uint8  `orm:"unique=NameAge:2"`
-    Email string `orm:"required;unique=Email"`
+    Name  string `orm:"required"`
+    Age   uint8
+    Email string `orm:"required"`
+}
+
+func (e UserEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{
+        "NameAge": {"Name", "Age"},
+        "Email":   {"Email"},
+    }
 }
 ```
 
-The `:2` suffix on `Age` indicates it is the second column in the `NameAge` index. The first field tagged with `unique=NameAge` (without a position suffix) defaults to position 1. This creates:
+The order of columns in the slice determines their position in the index. This creates:
 
 ```sql
 UNIQUE KEY `NameAge` (`Name`, `Age`),
@@ -66,20 +79,20 @@ user, found, err := entities.UserEntityProvider.SearchOne(ctx,
 )
 ```
 
-### Position Rules
-
-- The first column defaults to position 1 when no suffix is specified
-- Additional columns must specify their position explicitly: `unique=IndexName:2`, `unique=IndexName:3`, etc.
-- Positions must be sequential starting from 1 with no gaps
-
 Here is an example with three columns:
 
 ```go
 type OrderEntity struct {
     ID         uint64
-    CustomerID uint64 `orm:"unique=CustomerOrder"`
-    Year       uint16 `orm:"unique=CustomerOrder:2"`
-    OrderNum   uint32 `orm:"unique=CustomerOrder:3"`
+    CustomerID uint64
+    Year       uint16
+    OrderNum   uint32
+}
+
+func (e OrderEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{
+        "CustomerOrder": {"CustomerID", "Year", "OrderNum"},
+    }
 }
 ```
 
@@ -101,14 +114,28 @@ order, found, err := entities.OrderEntityProvider.SearchOne(ctx,
 
 ## Cached Unique Indexes
 
-By default, `SearchOne()` with unique index conditions queries MySQL directly every time it is called. For frequently accessed indexes, you can enable caching by adding the `cached` tag to the **first** column of the index:
+By default, `SearchOne()` with unique index conditions queries MySQL directly every time it is called. For frequently accessed indexes, you can enable caching by implementing the `EntityCachedUniqueIndexes` interface. Every entry in `CachedUniqueIndexes()` must also exist in `UniqueIndexes()`:
 
 ```go
 type UserEntity struct {
     ID    uint64 `orm:"redisCache"`
-    Name  string `orm:"required;unique=NameAge;cached"`
-    Age   uint8  `orm:"unique=NameAge:2"`
-    Email string `orm:"required;unique=Email;cached"`
+    Name  string `orm:"required"`
+    Age   uint8
+    Email string `orm:"required"`
+}
+
+func (e UserEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{
+        "NameAge": {"Name", "Age"},
+        "Email":   {"Email"},
+    }
+}
+
+func (e UserEntity) CachedUniqueIndexes() map[string][]string {
+    return map[string][]string{
+        "NameAge": {"Name", "Age"},
+        "Email":   {"Email"},
+    }
 }
 ```
 
@@ -137,12 +164,54 @@ Cached unique indexes also work on entities without Redis entity cache. In this 
 ```go
 type ProductEntity struct {
     ID   uint64
-    Code string `orm:"required;unique=Code;cached"`
-    SKU  int32  `orm:"unique=Code:2"`
+    Code string `orm:"required"`
+    SKU  int32
+}
+
+func (e ProductEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{
+        "Code": {"Code", "SKU"},
+    }
+}
+
+func (e ProductEntity) CachedUniqueIndexes() map[string][]string {
+    return map[string][]string{
+        "Code": {"Code", "SKU"},
+    }
 }
 ```
 
 Even without `orm:"redisCache"` on the `ID` field, `SearchOne()` caches the resolved entity ID in Redis when filtering by the `Code` index columns, avoiding repeated MySQL index lookups.
+
+## Non-Unique Indexes
+
+To define non-unique indexes, implement the `EntityIndexes` interface. The method returns a map where each key is the index name and the value is an ordered slice of column names:
+
+```go
+type UserEntity struct {
+    ID   uint64
+    Name string `orm:"required"`
+    Age  uint32
+}
+
+func (e UserEntity) Indexes() map[string][]string {
+    return map[string][]string{
+        "AgeIndex": {"Age"},
+    }
+}
+```
+
+This creates:
+
+```sql
+KEY `AgeIndex` (`Age`)
+```
+
+Non-unique indexes improve query performance but do not enforce uniqueness. They are useful for columns frequently used in `WHERE` clauses or `ORDER BY`.
+
+## FakeDelete and Indexes
+
+When an entity has a `FakeDelete bool` field, the `FakeDelete` column is automatically appended to all indexes (both unique and non-unique). You do not need to include it in your index definitions.
 
 ## Parameter Types
 
@@ -178,22 +247,64 @@ import (
 
 type CategoryEntity struct {
     ID   uint64 `orm:"localCache;redisCache"`
-    Name string `orm:"required;unique=Name;cached"`
-    Slug string `orm:"required;unique=Slug;cached"`
+    Name string `orm:"required"`
+    Slug string `orm:"required"`
+}
+
+func (e CategoryEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{
+        "Name": {"Name"},
+        "Slug": {"Slug"},
+    }
+}
+
+func (e CategoryEntity) CachedUniqueIndexes() map[string][]string {
+    return map[string][]string{
+        "Name": {"Name"},
+        "Slug": {"Slug"},
+    }
 }
 
 type UserEntity struct {
-    ID    uint64 `orm:"redisCache"`
-    Email string `orm:"required;unique=Email;cached"`
-    Name  string `orm:"required;unique=NameCountry;cached"`
-    Country string `orm:"unique=NameCountry:2"`
+    ID      uint64 `orm:"redisCache"`
+    Email   string `orm:"required"`
+    Name    string `orm:"required"`
+    Country string
+    Age     uint32
+}
+
+func (e UserEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{
+        "Email":       {"Email"},
+        "NameCountry": {"Name", "Country"},
+    }
+}
+
+func (e UserEntity) CachedUniqueIndexes() map[string][]string {
+    return map[string][]string{
+        "Email":       {"Email"},
+        "NameCountry": {"Name", "Country"},
+    }
+}
+
+func (e UserEntity) Indexes() map[string][]string {
+    return map[string][]string{
+        "Age": {"Age"},
+    }
 }
 
 type ProductEntity struct {
     ID       uint64
-    SKU      string `orm:"required;unique=SKU"`
-    Category fluxaorm.Reference[CategoryEntity] `orm:"required;unique=CategorySlug"`
-    Slug     string `orm:"required;unique=CategorySlug:2"`
+    SKU      string                                `orm:"required"`
+    Category fluxaorm.Reference[CategoryEntity]    `orm:"required"`
+    Slug     string                                `orm:"required"`
+}
+
+func (e ProductEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{
+        "SKU":          {"SKU"},
+        "CategorySlug": {"Category", "Slug"},
+    }
 }
 ```
 

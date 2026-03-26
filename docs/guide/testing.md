@@ -18,7 +18,11 @@ import (
 type UserEntity struct {
     ID    uint64
     Name  string
-    Email string `orm:"unique=Email"`
+    Email string
+}
+
+func (e UserEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{"Email": {"Email"}}
 }
 
 func TestCreateUser(t *testing.T) {

@@ -20,8 +20,12 @@ import (
 
 type CategoryEntity struct {
     ID   uint64 `orm:"localCache;redisCache"`
-    Code string `orm:"required;length=10;unique=Code"`
+    Code string `orm:"required;length=10"`
     Name string `orm:"required;length=100"`
+}
+
+func (e CategoryEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{"Code": {"Code"}}
 }
 
 type ProductEntity struct {

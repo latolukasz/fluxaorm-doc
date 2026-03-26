@@ -44,6 +44,14 @@ Returns a map of unique index names to their column lists:
 entitySchema.GetUniqueIndexes() // map[string][]string{"Email": {"Email"}, "NameAge": {"Name", "Age"}}
 ```
 
+### GetIndexes
+
+Returns a map of non-unique index names to their column lists:
+
+```go
+entitySchema.GetIndexes() // map[string][]string{"AgeIndex": {"Age"}}
+```
+
 ## Data Pool Methods
 
 ### GetDB
@@ -78,12 +86,12 @@ localCache, hasLocalCache := entitySchema.GetLocalCache()
 type UserEntity struct {
     ID    uint64 `orm:"redisCache"`
     Name  string `orm:"required;length=100"`
-    Email string `orm:"required;unique=Email"`
+    Email string `orm:"required"`
 }
 
 entitySchema.GetTag("Name", "required", "yes", "")   // "yes"
 entitySchema.GetTag("Name", "length", "", "")         // "100"
-entitySchema.GetTag("Email", "unique", "", "")        // "Email"
+entitySchema.GetTag("Email", "required", "yes", "")   // "yes"
 entitySchema.GetTag("Email", "missing", "", "default") // "default"
 ```
 

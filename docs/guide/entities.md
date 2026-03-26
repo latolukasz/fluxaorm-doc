@@ -14,7 +14,7 @@ import "github.com/latolukasz/fluxaorm/v2"
 type UserEntity struct {
     ID    uint64
     Name  string `orm:"required"`
-    Email string `orm:"required;unique=Email"`
+    Email string `orm:"required"`
     Age   uint8
 }
 ```
@@ -316,14 +316,21 @@ After code generation, the Provider includes Redis Search methods like `SearchMa
 
 ## Unique Indexes
 
-Define unique indexes using the `orm:"unique=IndexName"` tag. For composite indexes, use a position suffix:
+Define unique indexes by implementing the `EntityUniqueIndexes` interface on your entity struct. The method returns a map where each key is the index name and the value is an ordered slice of column names:
 
 ```go
 type UserEntity struct {
     ID    uint64
-    Name  string `orm:"required;unique=NameAge"`
-    Age   uint8  `orm:"unique=NameAge:2"`
-    Email string `orm:"required;unique=Email"`
+    Name  string `orm:"required"`
+    Age   uint8
+    Email string `orm:"required"`
+}
+
+func (e UserEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{
+        "NameAge": {"Name", "Age"},
+        "Email":   {"Email"},
+    }
 }
 ```
 
@@ -344,7 +351,7 @@ user, found, err = entities.UserEntityProvider.SearchOne(ctx,
 )
 ```
 
-See the [MySQL Indexes](/guide/mysql_indexes.html) page for full details on unique indexes and caching.
+See the [MySQL Indexes](/guide/mysql_indexes.html) page for full details on unique indexes, non-unique indexes, and caching.
 
 ## Complete Example
 
@@ -361,13 +368,13 @@ import (
 
 type CategoryEntity struct {
     ID   uint64 `orm:"localCache;redisCache"`
-    Name string `orm:"required;unique=Name"`
+    Name string `orm:"required"`
 }
 
 type UserEntity struct {
     ID        uint64 `orm:"redisCache"`
     Name      string `orm:"required"`
-    Email     string `orm:"required;unique=Email"`
+    Email     string `orm:"required"`
     Age       uint8
     Active    bool
     CreatedAt time.Time
@@ -399,9 +406,6 @@ All `orm` struct tags available in v2:
 | `ttl=seconds` | Redis cache TTL in seconds (on `ID` field) |
 | `redisSearch=pool` | Override Redis pool for Search indexing (on `ID` field); defaults to `default` when `searchable` fields exist |
 | `required` | NOT NULL in MySQL; for strings, prevents empty default |
-| `unique=Name` | Declare a unique index column |
-| `unique=Name:N` | Composite unique index with column position N |
-| `cached` | Cache unique index lookups in Redis |
 | `enum=a,b,c` | MySQL ENUM column with specified values |
 | `enum` | Reference a shared enum defined in another entity (requires `enumName`) |
 | `set=a,b,c` | MySQL SET column with specified values |

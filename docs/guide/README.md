@@ -25,8 +25,12 @@ import (
 type UserEntity struct {
     ID    uint64 `orm:"redisCache"`
     Name  string `orm:"required"`
-    Email string `orm:"unique=Email;required"`
+    Email string `orm:"required"`
     Age   uint8
+}
+
+func (e UserEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{"Email": {"Email"}}
 }
 
 func main() {

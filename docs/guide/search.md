@@ -13,10 +13,18 @@ After code generation, each Provider has a `Fields` struct containing typed fiel
 type UserEntity struct {
     ID        uint64 `orm:"redisCache"`
     Name      string `orm:"required"`
-    Email     string `orm:"unique=Email;cached"`
+    Email     string
     Age       uint32
     Status    string `orm:"enum=active,inactive;required"`
     CreatedAt time.Time
+}
+
+func (e UserEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{"Email": {"Email"}}
+}
+
+func (e UserEntity) CachedUniqueIndexes() map[string][]string {
+    return map[string][]string{"Email": {"Email"}}
 }
 
 // After code generation, UserProvider.Fields contains:
@@ -219,7 +227,7 @@ fmt.Printf("Found user: %s\n", user.GetName())
 ```
 
 ::: tip Smart Unique Index Detection
-When `SearchOne()` detects that the filter conditions match a cached unique index (e.g., filtering by `Email` when `Email` has the `unique` and `cached` tags), it automatically uses the cached index lookup instead of executing a SQL query. This gives you the same performance as `GetByIndexEmail()` with the convenience of the query builder API.
+When `SearchOne()` detects that the filter conditions match a cached unique index (e.g., filtering by `Email` when the entity implements `CachedUniqueIndexes()` for that field), it automatically uses the cached index lookup instead of executing a SQL query. This gives you the same performance as `GetByIndexEmail()` with the convenience of the query builder API.
 :::
 
 **Signature:**

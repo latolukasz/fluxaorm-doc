@@ -362,7 +362,7 @@ for _, p := range entities.AllProviders {
 ```
 
 ::: tip
-Entities with `cached` unique indexes but **without** `redisCache` do **not** implement `RedisCacheEntityProvider`. The Redis cache interface is only for entities that have the full entity-level Redis cache enabled.
+Entities with cached unique indexes (via `CachedUniqueIndexes()`) but **without** `redisCache` do **not** implement `RedisCacheEntityProvider`. The Redis cache interface is only for entities that have the full entity-level Redis cache enabled.
 :::
 
 ### AllProviders Registry
@@ -540,10 +540,14 @@ import "time"
 type UserEntity struct {
     ID        uint64
     Name      string    `orm:"required;length=200"`
-    Email     string    `orm:"required;unique=Email;length=255"`
+    Email     string    `orm:"required;length=255"`
     Age       uint8
     Status    string    `orm:"enum=active,inactive,banned;required"`
     CreatedAt time.Time `orm:"time"`
+}
+
+func (e UserEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{"Email": {"Email"}}
 }
 
 type ProductEntity struct {

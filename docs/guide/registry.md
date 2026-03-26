@@ -44,8 +44,12 @@ Entity structs use `orm:` struct tags to configure caching, indexes, enums, and 
 type UserEntity struct {
     ID    uint64 `orm:"redisCache"`
     Name  string `orm:"required"`
-    Email string `orm:"unique=Email;required"`
+    Email string `orm:"required"`
     Age   uint8
+}
+
+func (e UserEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{"Email": {"Email"}}
 }
 
 type ProductEntity struct {
@@ -58,7 +62,11 @@ type ProductEntity struct {
 
 type CategoryEntity struct {
     ID   uint16
-    Name string `orm:"required;unique=Name"`
+    Name string `orm:"required"`
+}
+
+func (e CategoryEntity) UniqueIndexes() map[string][]string {
+    return map[string][]string{"Name": {"Name"}}
 }
 
 type OrderEntity struct {
