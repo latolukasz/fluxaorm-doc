@@ -308,7 +308,8 @@ The Provider also has a `FieldsRedisSearch` struct containing typed Redis Search
 
 ```go
 entities.ProductProvider.FieldsRedisSearch.Name   // fluxaorm.RedisSearchTextField
-entities.ProductProvider.FieldsRedisSearch.Price  // fluxaorm.RedisSearchNumericField
+entities.ProductProvider.FieldsRedisSearch.Price  // fluxaorm.RedisSearchNumericField (float64 → float64 params)
+entities.ProductProvider.FieldsRedisSearch.Age    // fluxaorm.RedisSearchUintField    (uint32 → uint64 params)
 entities.ProductProvider.FieldsRedisSearch.Status // fluxaorm.RedisSearchTagField
 ```
 

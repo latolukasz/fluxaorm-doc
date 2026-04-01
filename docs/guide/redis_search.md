@@ -102,16 +102,18 @@ type ProductEntity struct {
 
 // After code generation, ProductProvider.FieldsRedisSearch contains:
 // ProductProvider.FieldsRedisSearch.Name   → fluxaorm.RedisSearchTextField
-// ProductProvider.FieldsRedisSearch.Price  → fluxaorm.RedisSearchNumericField
-// ProductProvider.FieldsRedisSearch.Age    → fluxaorm.RedisSearchNumericField
+// ProductProvider.FieldsRedisSearch.Price  → fluxaorm.RedisSearchNumericField  (float64 params)
+// ProductProvider.FieldsRedisSearch.Age    → fluxaorm.RedisSearchUintField     (uint64 params)
 // ProductProvider.FieldsRedisSearch.Status → fluxaorm.RedisSearchTagField
 ```
 
 ### Redis Search Field Types
 
-| Type | Methods | Description |
-|------|---------|-------------|
-| `RedisSearchNumericField` | `Eq(float64)`, `Gte(float64)`, `Lte(float64)`, `Gt(float64)`, `Lt(float64)`, `Between(min, max float64)` | For all numeric Go types (int, uint, float, bool, time.Time, Reference) |
+| Type | Methods | Used for |
+|------|---------|----------|
+| `RedisSearchUintField` | `Eq(uint64)`, `Gte(uint64)`, `Lte(uint64)`, `Gt(uint64)`, `Lt(uint64)`, `Between(min, max uint64)` | Unsigned integer Go types (`uint8`, `uint16`, `uint32`, `uint64`) and Reference fields |
+| `RedisSearchIntField` | `Eq(int64)`, `Gte(int64)`, `Lte(int64)`, `Gt(int64)`, `Lt(int64)`, `Between(min, max int64)` | Signed integer Go types (`int8`, `int16`, `int32`, `int64`) |
+| `RedisSearchNumericField` | `Eq(float64)`, `Gte(float64)`, `Lte(float64)`, `Gt(float64)`, `Lt(float64)`, `Between(min, max float64)` | Float Go types (`float32`, `float64`), `bool`, `time.Time` |
 | `RedisSearchTextField` | `Match(string)` | Full-text search on string fields |
 | `RedisSearchTagField` | `In(...string)` | Exact tag match on enum and set fields |
 
@@ -147,27 +149,23 @@ query := fluxaorm.NewRedisSearchQuery().Filter(
 
 ### Numeric Conditions
 
-Use `RedisSearchNumericField` methods for numeric filtering:
+The numeric field type is chosen based on the Go type of the column:
 
 ```go
-// Exact match: Price = 9.5
-entities.ProductProvider.FieldsRedisSearch.Price.Eq(9.5)
+// RedisSearchUintField — for uint8, uint16, uint32, uint64, Reference fields (accepts uint64)
+entities.ProductProvider.FieldsRedisSearch.Age.Gte(18)       // Age is uint32
+entities.ProductProvider.FieldsRedisSearch.Age.Between(1, 100)
 
-// Greater than or equal: Age >= 18
-entities.ProductProvider.FieldsRedisSearch.Age.Gte(18)
+// RedisSearchIntField — for int8, int16, int32, int64 fields (accepts int64)
+entities.ProductProvider.FieldsRedisSearch.Balance.Gte(-100) // Balance is int32
+entities.ProductProvider.FieldsRedisSearch.Balance.Lt(0)
 
-// Less than or equal: Price <= 99.99
-entities.ProductProvider.FieldsRedisSearch.Price.Lte(99.99)
-
-// Greater than: Age > 18
-entities.ProductProvider.FieldsRedisSearch.Age.Gt(18)
-
-// Less than: Price < 100
-entities.ProductProvider.FieldsRedisSearch.Price.Lt(100)
-
-// Range: Price between 10.50 and 99.99 (inclusive)
+// RedisSearchNumericField — for float32, float64, bool, time.Time (accepts float64)
+entities.ProductProvider.FieldsRedisSearch.Price.Eq(9.5)     // Price is float64
 entities.ProductProvider.FieldsRedisSearch.Price.Between(10.50, 99.99)
 ```
+
+All three types support the same methods: `Eq()`, `Gte()`, `Lte()`, `Gt()`, `Lt()`, `Between()`.
 
 ### Tag Conditions
 
@@ -304,8 +302,10 @@ func (p XxxProvider) SearchOneInRedis(ctx fluxaorm.Context, query *fluxaorm.Redi
 
 ### Redis Search Field Types
 
-| Type | Methods | Description |
-|------|---------|-------------|
-| `RedisSearchNumericField` | `Eq(float64)`, `Gte(float64)`, `Lte(float64)`, `Gt(float64)`, `Lt(float64)`, `Between(min, max float64)` | Numeric comparisons and ranges |
+| Type | Methods | Used for |
+|------|---------|----------|
+| `RedisSearchUintField` | `Eq(uint64)`, `Gte(uint64)`, `Lte(uint64)`, `Gt(uint64)`, `Lt(uint64)`, `Between(min, max uint64)` | Unsigned integers, References |
+| `RedisSearchIntField` | `Eq(int64)`, `Gte(int64)`, `Lte(int64)`, `Gt(int64)`, `Lt(int64)`, `Between(min, max int64)` | Signed integers |
+| `RedisSearchNumericField` | `Eq(float64)`, `Gte(float64)`, `Lte(float64)`, `Gt(float64)`, `Lt(float64)`, `Between(min, max float64)` | Floats, bool, time.Time |
 | `RedisSearchTextField` | `Match(string)` | Full-text search |
 | `RedisSearchTagField` | `In(...string)` | Exact tag match (OR for multiple values) |

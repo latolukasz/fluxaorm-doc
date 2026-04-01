@@ -175,28 +175,84 @@ This method is only available on Providers for entities that have the `debezium`
 
 ## Consuming CDC Events
 
-FluxaORM provides helper functions to parse Debezium CDC events from Kafka records.
+### Registering a Consumer Group
 
-### ParseDebeziumEvent
-
-`ParseDebeziumEvent` parses a Kafka record into a structured `DebeziumEvent`:
+Use `DebeziumEntities()` on a consumer group builder to automatically subscribe to the correct Debezium topics for your entities. Topic names are resolved automatically during `Validate()`:
 
 ```go
-event, err := fluxaorm.ParseDebeziumEvent(record)
+registry.RegisterKafkaConsumerGroup(
+    fluxaorm.NewKafkaConsumerGroup("my_cdc_consumer", "kafka").
+        DebeziumEntities(&UserEntity{}, &OrderEntity{}),
+)
+```
+
+You can also combine `DebeziumEntities()` with regular `Topics()` on the same consumer group:
+
+```go
+registry.RegisterKafkaConsumerGroup(
+    fluxaorm.NewKafkaConsumerGroup("mixed_consumer", "kafka").
+        DebeziumEntities(&UserEntity{}).
+        Topics("custom-events"),
+)
+```
+
+::: tip
+If you prefer to specify topic names manually, you can still use `Topics()` with `Provider.DebeziumTopicName(ctx)`:
+
+```go
+registry.RegisterKafkaConsumerGroup(
+    fluxaorm.NewKafkaConsumerGroup("my_cdc_consumer", "kafka").
+        Topics(UserEntityProvider.DebeziumTopicName(ctx)),
+)
+```
+:::
+
+### EachDebeziumEvent
+
+Use `EachDebeziumEvent()` on `KafkaFetches` to iterate over parsed Debezium events. Each record is automatically deserialized into an entity ID and `DebeziumEvent`. Tombstone records (used for Kafka log compaction) are skipped silently:
+
+```go
+kafka := engine.Kafka("kafka")
+cg := kafka.MustConsumerGroup("my_cdc_consumer")
+defer cg.Close()
+
+fetches := cg.PollFetches(ctx)
+err := fetches.EachDebeziumEvent(func(entityID uint64, event *fluxaorm.DebeziumEvent) error {
+    switch event.Op {
+    case fluxaorm.DebeziumCreate:
+        fmt.Printf("New entity %d: %v\n", entityID, event.After)
+    case fluxaorm.DebeziumUpdate:
+        fmt.Printf("Updated entity %d: %v -> %v\n", entityID, event.Before, event.After)
+    case fluxaorm.DebeziumDelete:
+        fmt.Printf("Deleted entity %d\n", entityID)
+    }
+    return nil
+})
 if err != nil {
-    // handle parse error
+    fmt.Printf("error processing events: %v\n", err)
 }
 ```
 
-### ParseDebeziumKey
+If the handler returns a non-nil error, iteration stops and that error is returned. Parse errors also stop iteration.
 
-`ParseDebeziumKey` extracts the entity ID from a Debezium event key:
+### Low-Level Parsing
+
+For more control, you can parse records manually using `ParseDebeziumEvent` and `ParseDebeziumKey`:
 
 ```go
-entityID, err := fluxaorm.ParseDebeziumKey(record)
-if err != nil {
-    // handle parse error
-}
+fetches.EachRecord(func(record *fluxaorm.KafkaRecord) {
+    event, err := fluxaorm.ParseDebeziumEvent(record)
+    if err != nil {
+        // handle parse error
+        return
+    }
+    entityID, err := fluxaorm.ParseDebeziumKey(record)
+    if err != nil {
+        // handle key parse error
+        return
+    }
+    // process event...
+})
 ```
 
 ### DebeziumEvent
@@ -247,6 +303,12 @@ func main() {
     registry.RegisterDebeziumConnectURL("http://localhost:8083", "kafka")
     registry.RegisterEntity(&UserEntity{})
 
+    // Register consumer group with automatic topic resolution
+    registry.RegisterKafkaConsumerGroup(
+        fluxaorm.NewKafkaConsumerGroup("my_cdc_consumer", "kafka").
+            DebeziumEntities(&UserEntity{}),
+    )
+
     engine, err := registry.Validate()
     if err != nil {
         panic(err)
@@ -273,18 +335,7 @@ func main() {
     defer cg.Close()
 
     fetches := cg.PollFetches(ctx)
-    fetches.EachRecord(func(record *fluxaorm.KafkaRecord) {
-        event, err := fluxaorm.ParseDebeziumEvent(record)
-        if err != nil {
-            fmt.Printf("parse error: %v\n", err)
-            return
-        }
-        entityID, err := fluxaorm.ParseDebeziumKey(record)
-        if err != nil {
-            fmt.Printf("key parse error: %v\n", err)
-            return
-        }
-
+    err = fetches.EachDebeziumEvent(func(entityID uint64, event *fluxaorm.DebeziumEvent) error {
         switch event.Op {
         case fluxaorm.DebeziumCreate:
             fmt.Printf("New entity %d: %v\n", entityID, event.After)
@@ -293,14 +344,14 @@ func main() {
         case fluxaorm.DebeziumDelete:
             fmt.Printf("Deleted entity %d\n", entityID)
         }
+        return nil
     })
+    if err != nil {
+        fmt.Printf("error: %v\n", err)
+    }
 }
 ```
 
 ::: warning
 Debezium CDC events are delivered asynchronously. There may be a short delay between a MySQL write and the corresponding event appearing on the Kafka topic. Do not rely on CDC events for synchronous consistency checks.
-:::
-
-::: tip
-For the consumer group used to consume Debezium events, register it with the appropriate topic name. Use `Provider.DebeziumTopicName(ctx)` to get the correct topic name for each entity.
 :::
