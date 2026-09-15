@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This documentation must be kept in sync with the ORM code in `orm/`. Every change to the ORM code must be accompanied by a corresponding update here. This includes API changes, new features, removed features, behavior changes, and bug fixes that affect documented behavior.
 
+The persistence contract is documented in `crud.md`, `transactions.md`, `lifecycle_callbacks.md`, `entity_events.md` and `code_generation.md`: successful SQL advances the live entity baseline before commit, each write retains a snapshot for post-commit events and handlers, and rollback restores the persisted baseline while retaining current user values. Keep these pages consistent when changing save semantics, and document any regeneration requirement.
+
 ## Commands
 
 ```bash

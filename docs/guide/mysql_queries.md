@@ -215,7 +215,7 @@ user.SetName("Alice")
 err := ctx.Save(user) // UPDATE Counters + UPDATE user
 ```
 
-`Save` with no entities to write (called with none, or only with entities already staged in the current transaction) returns before touching the pipelines. When you only have raw statements, call `pipeline.Exec(ctx)` yourself.
+`Save()` with no entities, or only `nil` entries, returns before touching the pipelines. Passing an unchanged entity still executes the queued database pipelines, including when that entity was saved earlier in the same transaction; the entity itself adds no SQL. When you only have raw statements, call `pipeline.Exec(ctx)` yourself.
 
 ## Mocking the Client
 

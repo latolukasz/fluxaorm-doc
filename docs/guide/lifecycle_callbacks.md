@@ -73,11 +73,14 @@ func RegisterAfterDeleteHandler(engine Engine, cacheIndex string, handler func(C
 
 ### When they run
 
-After handlers are part of the post-commit phase of `Save` (see [Transactions](/guide/transactions.html#post-commit-work-and-postcommiterror)). Outside a transaction that is right after the statement executed; inside one it is right after `COMMIT`, for every entity saved in that transaction. Within the phase the order is: second cache invalidation, Redis pipelines (search hashes), [entity events](/guide/entity_events.html), **After handlers**, then the entities are marked clean. Consequences:
+After handlers are part of the post-commit phase of `Save` (see [Transactions](/guide/transactions.html#post-commit-work-and-postcommiterror)). Outside a transaction that is right after the statement executed; inside one it is right after `COMMIT`, for every write performed in that transaction. Within the phase the order is: evict handles that remain deleted from the context cache, second cache invalidation, Redis pipelines (search hashes), [entity events](/guide/entity_events.html), then **After handlers**. The live entity's saved baseline is advanced after SQL execution, before this phase. Consequences:
 
 - The rows are durable when a handler runs. A handler never sees a write that will be rolled back.
-- Getters on the entity return the **new** values; for updates the `changes` map holds the **old** value of every changed column, keyed by column name. `CreatedAt`, `UpdatedAt` and `FakeDelete` are never in `changes`. Values are plain `uint64`, `int64`, `float64`, `bool`, `string`, `time.Time`, or `nil` for NULL — never pointers.
+- The handler receives a separate snapshot of the entity for that write, not the live pointer held by the caller or context cache. Its getters return the values captured by that `Save`, even if the live entity was saved again or edited later.
+- For updates, the `changes` map holds the **old** value of every changed column, keyed by column name, relative to the preceding load or successful save. `CreatedAt`, `UpdatedAt` and `FakeDelete` are never in `changes`. Values are plain `uint64`, `int64`, `float64`, `bool`, `string`, `time.Time`, or `nil` for NULL — never pointers.
 - `ctx` is the very `Context` that performed the write, with its context cache and, at this point, no open transaction.
+
+For example, saving a new entity with `Name="first"` and then saving `Name="second"` in the same transaction invokes `OnAfterInsert` with `"first"`, then `OnAfterUpdate` with `"second"` and `changes["Name"] == "first"`. Saving it again unchanged invokes no handler.
 
 ### Which handler fires
 
@@ -124,7 +127,7 @@ entities.UserEntityProvider.OnAfterInsert(engine, func(ctx fluxaorm.Context, use
 })
 ```
 
-Do not save the entity being handled from its own handler: it has not been marked clean yet, so the write would be staged a second time. Keep handlers short and fail-safe; for work that must survive a crash between commit and handler, use [entity events](/guide/entity_events.html) with the [outbox](/guide/outbox.html) instead of a handler.
+Treat the supplied snapshot as read-only event data: `Save`, `Delete`, `ForceDelete` and `Reload` reject it with `fluxaorm.ErrEntityReadOnly`. Setters only change that detached snapshot locally. Reference getters still work through its context. If you need to modify the same row, obtain its live entity through the provider on `ctx` and save that handle. A write from a handler can trigger another handler, so avoid recursive updates of the same row. Keep handlers short and fail-safe; for work that must survive a crash between commit and handler, use [entity events](/guide/entity_events.html) with the [outbox](/guide/outbox.html) instead of a handler.
 
 ## Full example
 

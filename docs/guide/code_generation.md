@@ -57,6 +57,12 @@ What `Generate` does, in order:
 
 The package name of the generated code is the base name of the output directory (`entities` in the example above). Commit the generated files together with the entity structs that produced them.
 
+## Upgrading FluxaORM
+
+Regenerate all entities after updating the ORM dependency, even when your model structs have not changed. The generator and runtime must agree on the entity persistence protocol.
+
+The transaction save fix requires generated snapshot and rollback support, including `PrivateSnapshot`, `PrivateRollback` and `PrivateIsSnapshot`. Older generated entities can still compile, but `Save` returns `fluxaorm.ErrEntityNeedsRegeneration` rather than using an entity without this support. Run your generator with the updated dependency, then rebuild and test the application. `Save`, `Transaction` and the public setters keep their existing signatures.
+
 ## Output layout
 
 | File | Content |
@@ -197,6 +203,8 @@ type UserEntity struct {
     id                   uint64
     new                  bool
     deleted              bool
+    removed              bool
+    snapshot             bool
     originDatabaseValues *userEntitySQLRow
     databaseBind         map[string]any
     originRedisValues    []string
@@ -224,7 +232,7 @@ func (e *UserEntity) GetUpdatedAt() time.Time
 func (e *UserEntity) SetUpdatedAt(value time.Time) *UserEntity
 ```
 
-Methods whose name starts with `Private` (`PrivateFlush`, `PrivateFlushed`, `PrivateReload`, `PrivateDelete`, `PrivateForceDelete` - only on `FakeDelete` entities, `PrivateFlushEvent`, `PrivateGetDatabaseBind`, `PrivateCacheIndex`, `PrivateIsNew`, `PrivateContext`) implement the `fluxaorm.Entity` interface and are called by `ctx.Save`, `ctx.Delete` and `ctx.Reload`. They are exported only because the ORM lives in another package; never call them yourself.
+Methods whose name starts with `Private` (`PrivateFlush`, `PrivateFlushed`, `PrivateSnapshot`, `PrivateRollback`, `PrivateAdvance`, `PrivateIsSnapshot`, `PrivateIsDeleted`, `PrivateDatabasePool`, `PrivateReload`, `PrivateDelete`, `PrivateForceDelete` - only on `FakeDelete` entities, `PrivateFlushEvent`, `PrivateGetDatabaseBind`, `PrivateCacheIndex`, `PrivateIsNew`, `PrivateContext`) implement the `fluxaorm.Entity` interface or internal capabilities used by `ctx.Save`, `ctx.Delete`, `ctx.Reload` and transactions. They are exported only because the ORM lives in another package; never call them yourself.
 
 ## The Provider
 
@@ -330,7 +338,7 @@ for _, provider := range entities.AllProviders {
 
 ## The Entity
 
-An entity remembers the `Context` that created or loaded it, its ID, the values as they were read from MySQL or Redis (`originDatabaseValues` / `originRedisValues`) and the columns changed since (`databaseBind`). It can only be saved on that context; see [CRUD](/guide/crud.html) for the write rules.
+An entity remembers the `Context` that created or loaded it, its ID, its latest loaded or successfully saved values (`originDatabaseValues` / `originRedisValues`) and the columns changed since (`databaseBind`). A successful `Save` advances that baseline immediately after SQL execution, even before a transaction commits. The ORM keeps separate snapshots for deferred events and rollback; see [Transactions](/guide/transactions.html). The entity can only be saved on its own context; see [CRUD](/guide/crud.html) for the write rules.
 
 ### Getters and setters
 

@@ -43,13 +43,14 @@ err := ctx.Save(category, user)
 
 ## Setters and dirty tracking
 
-Setters return the entity, so calls chain. On a new entity a setter simply writes the value. On a loaded entity it compares the value with what was read from MySQL or Redis: an identical value is a no-op (and undoes an earlier change to the same column), a different value is recorded in the entity's change set. Only recorded columns end up in the `UPDATE` statement.
+Setters return the entity, so calls chain. Before the first successful `Save`, a setter on a new entity simply writes the value. After loading or saving an entity, setters compare against the most recently loaded or saved values: setting a column back to that value removes its pending change; a different value is recorded in the entity's change set. Only recorded columns end up in the `UPDATE` statement. This baseline advances after each successful `Save`, including inside a transaction before `COMMIT`.
 
 ```go
 user, found, err := entities.UserEntityProvider.GetByID(ctx, id)
+originalName := user.GetName()
 user.SetName("Alice")          // no-op if Name already is "Alice"
 user.SetEmail("")              // nullable string: "" stores NULL
-user.SetName(user.GetName())   // undoes a pending Name change
+user.SetName(originalName)     // undoes the pending Name change
 ```
 
 Floats are compared after rounding to the column's precision, times are truncated to the second (`orm:"time"`) or to the day (date columns) before comparison and storage. There is no validation of `required` fields on save: `required` only decides whether a column is `NOT NULL`; saving a required string as `""` is allowed.
@@ -60,16 +61,16 @@ Floats are compared after rounding to the column's precision, times are truncate
 Save(entities ...Entity) error
 ```
 
-`Save` writes the entities you pass, in the order you pass them. A clean entity (no changes, not new, not deleted) is a no-op, duplicates of the same pointer are collapsed, and `nil` entries are skipped. Passing a single entity executes its statement directly; passing **more than one** wraps the write in a [transaction](/guide/transactions.html) automatically, so entities that belong together commit together. Inside an explicit `ctx.Transaction` every `Save` joins that transaction.
+`Save` writes the entities you pass, in the order you pass them. A clean entity (no changes, not new, not deleted) generates no SQL of its own, duplicates of the same pointer are collapsed, and `nil` entries are skipped. Passing a single entity executes its statement directly; passing **more than one** wraps the write in a [transaction](/guide/transactions.html) automatically, so entities that belong together commit together. Inside an explicit `ctx.Transaction` every `Save` joins that transaction. Any database pipelines already queued on the context still execute, even when the entity is unchanged; see [Pipelines and Save](/guide/mysql_queries.html#pipelines-and-save).
 
 What happens, in order:
 
 1. For each entity the generated code runs the `Before*` [callbacks](/guide/lifecycle_callbacks.html), builds its `INSERT`, `UPDATE` or `DELETE` into the database pipeline of its pool, registers the Redis keys the write makes stale and queues Redis Search hash writes. `CreatedAt` and `UpdatedAt` are set to `time.Now().UTC().Truncate(time.Second)` on insert (only when still zero, so a value you set yourself is kept), and `UpdatedAt` is refreshed on every update.
 2. The registered Redis keys are deleted (see [Redis Cache](/guide/redis_cache.html)).
-3. The SQL statements run — through the open transaction when there is one, otherwise directly on the pool. A SQL error is returned as-is and nothing below happens.
-4. Post-commit work runs once the rows are durable: the same Redis keys are deleted a second time, Redis pipelines (search hashes) execute, [entity events](/guide/entity_events.html) are published, `After*` handlers run, deleted entities leave the context cache, and finally every entity folds its change set into its origin values. Inside a transaction this step is deferred until `COMMIT`.
+3. The SQL statements run — through the open transaction when there is one, otherwise directly on the pool. After successful execution, each entity folds the values just written into its saved baseline and clears those pending changes. An inserted entity is now eligible for `UPDATE`, including before `COMMIT`. Each write keeps a separate snapshot for its deferred events and handlers.
+4. Post-commit work runs once the rows are durable: entities that remain deleted leave the context cache, the same Redis keys are deleted a second time, Redis pipelines (search hashes) execute, [entity events](/guide/entity_events.html) are published, and `After*` handlers run. Inside a transaction this step is deferred until `COMMIT`.
 
-After a successful `Save` the same pointer is clean, `new` is false, and it stays in the context cache: keep using it, change it, save it again.
+The same live pointer now tracks changes against the values just written: keep using it, change it, save it again. An inserted entity is no longer new. Inside a transaction, another `Save` writes any changes made since the previous one; without new changes it emits no entity statement. `COMMIT` does not save or clear edits made after the last `Save`. See [Saving the same entity again](/guide/transactions.html#saving-the-same-entity-again) for an example and rollback behaviour.
 
 ```go
 user.SetName("Alice Smith")
@@ -80,7 +81,9 @@ Errors you can get from `Save`:
 
 - the SQL error of the failing statement (rows not written; inside a transaction the transaction is rolled back);
 - `entity <type> <id> belongs to a different context; save it on the context that created or loaded it` — an entity can only be saved on the `Context` that created or loaded it;
-- `*fluxaorm.PostCommitError` — a step of the post-commit phase failed **after** the rows were committed. Do not retry the write; see [Transactions](/guide/transactions.html).
+- `*fluxaorm.PostCommitError` — a step of the post-commit phase failed **after** the rows were committed. The entity's saved baseline already reflects the SQL write; a later `Save` cannot replay the failed side effect. See [Transactions](/guide/transactions.html).
+- `fluxaorm.ErrEntityReadOnly` when passing an [After-handler snapshot](/guide/lifecycle_callbacks.html#when-they-run) instead of a live entity.
+- `fluxaorm.ErrEntityNeedsRegeneration` when the generated entities lack the snapshot support required by this ORM version. Regenerate them with the updated dependency; see [Code Generation](/guide/code_generation.html#upgrading-fluxaorm).
 
 There is no API to discard pending changes: drop the handle, or `ctx.Reload` it (which refuses while changes are pending, see below).
 
@@ -176,8 +179,8 @@ err = ctx.Delete(user) // DELETE FROM `UserEntity` WHERE `ID` = ?
 
 - `Delete` honours [fake delete](/guide/fake_delete.html): on an entity with a `FakeDelete` field it issues an `UPDATE` that marks the row deleted instead of removing it.
 - `ForceDelete` always removes the row. On an entity without `FakeDelete` it behaves exactly like `Delete`.
-- Deleting an entity that was never saved fails with `ErrEntityNotPersisted` (`entity was never persisted: *entities.UserEntity 12345`).
-- After the write the entity is removed from the context cache, so a later `GetByID` on the same context goes to the database (and, for a hard delete, returns not found). Saving the deleted entity again does not re-issue the `DELETE`.
+- Deleting an entity that was never saved fails with `ErrEntityNotPersisted` (`entity was never persisted: *entities.UserEntity 12345`). After a successful `Save` inside a transaction, that newly inserted entity can be deleted in the same transaction.
+- After commit, a handle that remains deleted is removed from the context cache before events and handlers run, so a later `GetByID` goes to the database (and, for a hard delete, returns not found). A queued delete does not evict a later restored entity or a replacement handle. Saving the deleted entity again does not re-issue the `DELETE`.
 
 ## Reloading
 
@@ -185,7 +188,7 @@ err = ctx.Delete(user) // DELETE FROM `UserEntity` WHERE `ID` = ?
 Reload(entities ...Entity) error
 ```
 
-`Reload` re-reads each entity from MySQL **in place**: the pointer does not change, so every holder of that entity — including the context cache — sees the fresh row. It always reads MySQL (never the Redis row cache) through `ctx.DB(pool)`, so inside a transaction it sees the transaction's own writes. A reloaded entity is clean, and setters afterwards compare against the new values.
+`Reload` re-reads each entity from MySQL **in place**: the pointer does not change, so every holder of that entity — including the context cache — sees the fresh row. It always reads MySQL (never the Redis row cache) through `ctx.DB(pool)`, so inside a transaction it sees the transaction's own writes. A reloaded entity is clean, and setters afterwards compare against the new values. A new entity can be reloaded after its first successful `Save` in the same transaction, provided it has no pending changes.
 
 ```go
 if err := ctx.Reload(user); err != nil {
@@ -200,13 +203,14 @@ if err := ctx.Reload(user); err != nil {
 }
 ```
 
-Entities are processed in order and the first failure stops the loop. Errors are wrapped as `reload entity <id>: <cause>`:
+Entities are processed in order and the first failure stops the loop. Persisted-state and read errors are wrapped as `reload entity <id>: <cause>`. A read-only handler snapshot is rejected directly with `ErrEntityReadOnly`, before any query runs:
 
 | Error | Meaning |
 |:------|:--------|
 | `ErrEntityNotPersisted` | The entity is new; there is no row to read. |
 | `ErrEntityUnsavedChanges` | The entity has pending setter changes. Reloading would silently discard them, so it is refused before any query runs. |
 | `ErrEntityVanished` | The row no longer exists in MySQL. |
+| `ErrEntityReadOnly` | The argument is an After-handler snapshot; reload the live entity from its provider instead. |
 
 ## Error reference
 
@@ -215,6 +219,8 @@ Entities are processed in order and the first failure stops the loop. Errors are
 | `fluxaorm.ErrEntityNotPersisted` | `entity was never persisted` | `Delete`, `ForceDelete`, `Reload` |
 | `fluxaorm.ErrEntityUnsavedChanges` | `entity has unsaved changes` | `Reload` |
 | `fluxaorm.ErrEntityVanished` | `entity row no longer exists` | `Reload` |
+| `fluxaorm.ErrEntityNeedsRegeneration` | `generated entity needs regeneration with fluxaorm.Generate to support transactional write snapshots` | `Save`, `Delete`, `ForceDelete` |
+| `fluxaorm.ErrEntityReadOnly` | `entity is a read-only write snapshot` | `Save`, `Delete`, `ForceDelete`, `Reload` |
 | `fluxaorm.ErrTxRollbackOnly` | `transaction is rollback-only` | `Transaction` (see [Transactions](/guide/transactions.html)) |
 | `*fluxaorm.PostCommitError` | `post-commit failure (database changes are committed): <cause>` | `Save`, `Delete`, `ForceDelete`, `Transaction` |
 

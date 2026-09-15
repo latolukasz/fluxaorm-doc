@@ -134,9 +134,11 @@ Publishing is part of `ctx.Save()` (see [CRUD](/guide/crud.html)) and happens **
 
 1. Entity statements (and [outbox](/guide/outbox.html) rows, if any) are executed on the database pipeline.
 2. Outside a transaction the post-commit step runs immediately; inside `ctx.Transaction(...)` it is queued and runs after the commit (see [Transactions](/guide/transactions.html)).
-3. Post-commit order: cache invalidation, Redis pipelines, **entity event publish**, outbox mark, after-handlers.
+3. Post-commit order: evict handles that remain deleted from the context cache, cache invalidation, Redis pipelines, **entity event publish**, outbox mark, after-handlers.
 
-All events of one `Save` call are published with a single `PublishBatch` per NATS pool, and `Save` waits for the JetStream acks. So `Save` returning `nil` means the event is durably stored on the stream.
+Each write captures its own column snapshot. If a new entity is saved with `Name="first"`, changed to `"second"` and saved again in one transaction, commit publishes an Insert with `After.Name="first"`, then an Update with `Before.Name="first"` and `After.Name="second"`. Later edits to the live entity cannot change these payloads. An unchanged `Save` produces no event, and rollback publishes none.
+
+All events of one `Save` call are published with a single `PublishBatch` per NATS pool, and the post-commit phase waits for the JetStream acks. Outside a transaction, `Save` returning `nil` means the event is durably stored on the stream. Inside a transaction, that guarantee applies only when the outermost `Transaction` returns `nil`; an individual `tx.Save` returns before publication.
 
 If the publish fails after the rows were committed, `Save` (or `Transaction`) returns a `*fluxaorm.PostCommitError` whose message starts with `post-commit failure (database changes are committed): ` and wraps `publish <n> entity events to pool <pool>: <cause>`:
 
@@ -147,7 +149,8 @@ if err := ctx.Save(u); err != nil {
     var postCommit *fluxaorm.PostCommitError
     if errors.As(err, &postCommit) {
         // The row IS in the database; only the event did not reach NATS.
-        // Retrying Save would insert twice. See the outbox page for a durable fix.
+        // Saving this unchanged entity again does not retry publication.
+        // See the outbox page for durable event delivery.
     }
     return err
 }

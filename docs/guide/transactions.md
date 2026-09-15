@@ -32,6 +32,33 @@ err := ctx.Transaction(func(tx fluxaorm.Context) error {
 
 `fn` returning `nil` commits; returning an error or panicking rolls back (the panic is re-raised after the rollback). The `tx` passed to `fn` is the **same** `Context` you called `Transaction` on — not a clone — so entities loaded before the call can be saved inside it, the [context cache](/guide/context_cache.html) is shared, and `ctx.InTransaction()` is `true` for the duration of `fn`.
 
+## Saving the same entity again
+
+Each successful `Save` updates the entity's saved baseline immediately after its SQL executes. The first save of a new entity executes `INSERT`; a later save of changes to that entity executes `UPDATE`, even in the same transaction. Saving it again without new changes generates no additional entity statement.
+
+```go
+category := entities.CategoryEntityProvider.New(ctx)
+err := ctx.Transaction(func(tx fluxaorm.Context) error {
+    category.SetCode("books").SetName("first")
+    if err := tx.Save(category); err != nil { // INSERT Name="first"
+        return err
+    }
+    category.SetName("second")
+    if err := tx.Save(category); err != nil { // UPDATE Name="second"
+        return err
+    }
+    if err := tx.Save(category); err != nil { // no-op
+        return err
+    }
+    category.SetName("draft") // remains unsaved after COMMIT
+    return nil
+})
+```
+
+If the transaction succeeds, MySQL contains `"second"`, while `category.GetName()` returns the pending value `"draft"`. A subsequent `ctx.Save(category)` writes `"draft"`. `COMMIT` never persists changes that were not passed to `Save`.
+
+Setters always compare against the latest successful save. For an existing entity, changing a field back to its value from before the transaction therefore produces an `UPDATE` if an earlier save in that transaction wrote a different value.
+
 ## What joins the transaction
 
 - **`Save`, `Delete`, `ForceDelete`** on the context. Their SQL statements execute immediately through the transaction, so the transaction sees its own writes. Their post-commit work (see below) is deferred until `COMMIT`.
@@ -45,7 +72,7 @@ err := ctx.Transaction(func(tx fluxaorm.Context) error {
 Before the first `Save` on a pool, `ctx.DB(pool)` still returns the plain pool and reads run in autocommit mode. If you need `SELECT ... FOR UPDATE` semantics, obtain the locks with raw SQL after the first write, or use a [distributed lock](/guide/distributed_lock.html).
 :::
 
-When writes hit several pools, each pool gets its own transaction and they are committed in the order they were opened. If a later `COMMIT` fails after an earlier one succeeded, the error is `commit failed on pool "<pool>" after pools [<pools>] already committed: <cause>` — there is no cross-pool atomicity.
+When writes hit several pools, each pool gets its own transaction and they are committed in the order they were opened. If a later `COMMIT` fails after an earlier one succeeded, the error is `commit failed on pool "<pool>" after pools [<pools>] already committed: <cause>` — there is no cross-pool atomicity. Entities from already committed pools keep their saved baselines; rollback restores only entities belonging to pools that did not commit. Reconcile the partially committed operation before retrying.
 
 ## What does not join the transaction
 
@@ -74,23 +101,27 @@ err := ctx.Transaction(func(tx fluxaorm.Context) error {
 // errors.Is(err, fluxaorm.ErrTxRollbackOnly) == true, nothing was committed
 ```
 
-Within an open transaction an entity that has already been saved and has no new changes is skipped by a second `Save`, so helper functions may call `tx.Save(e)` defensively without re-issuing inserts.
+An SQL error, or an error in the pre-SQL cache invalidation or outbox stage of `Save`, also marks the transaction rollback-only. Even if the callback ignores that write error and returns `nil`, the outermost `Transaction` returns `ErrTxRollbackOnly`.
 
 ## Rollback
 
-On an error or a panic the SQL transactions of every pool are rolled back, the pending database and Redis pipelines are discarded and the pending cache invalidations are dropped. The Go objects are **not** reverted: a new entity is still new, a modified entity still holds its changes, so you may fix the cause and save them again on the same context.
+On an error or a panic any uncommitted SQL transactions are rolled back, the pending database and Redis pipelines are discarded and the pending cache invalidations are dropped. No `After*` handlers or entity events run for rolled-back writes.
+
+Rollback restores each saved entity's baseline from before its first write in the transaction, while retaining its latest field values, including edits made after its last `Save`. An entity that was new when first saved in the transaction becomes new again, so retrying it executes `INSERT` with its current values. An existing entity keeps the changes needed to write its current values relative to the original persisted baseline. Fix the cause, then save the same objects again on the same context.
 
 ## Post-commit work and `PostCommitError`
 
 Some of what `Save` does must only become visible once the rows are durable. Inside a transaction these steps are queued and run right after `COMMIT`, in this order:
 
-1. the second deletion of the invalidated Redis row-cache and unique-index keys;
-2. the Redis pipelines queued by the writes (Redis Search hashes);
-3. publishing [entity events](/guide/entity_events.html) and marking [outbox](/guide/outbox.html) rows dispatched;
-4. the `After*` [lifecycle handlers](/guide/lifecycle_callbacks.html);
-5. evicting deleted entities from the context cache and marking every saved entity clean.
+1. evicting handles that remain deleted from the context cache, while preserving later restored entities or replacement handles;
+2. the second deletion of the invalidated Redis row-cache and unique-index keys;
+3. the Redis pipelines queued by the writes (Redis Search hashes);
+4. publishing [entity events](/guide/entity_events.html) and marking [outbox](/guide/outbox.html) rows dispatched;
+5. the `After*` [lifecycle handlers](/guide/lifecycle_callbacks.html).
 
-If any of these fails, the rows are already committed. `Transaction` (and `Save` outside a transaction) then returns a `*fluxaorm.PostCommitError`:
+Each write uses its own snapshot for events and handlers. An `INSERT` followed by an `UPDATE` of the same entity produces both operations after commit, with the values from their respective saves. The live entity's baseline was already advanced after SQL execution, so this phase does not clear edits made after the last `Save`.
+
+If any of these fails, the rows are already committed and the saved baselines remain advanced. `Transaction` (and `Save` outside a transaction) then returns a `*fluxaorm.PostCommitError`. Saving an unchanged entity again is a no-op and does not retry the failed event or handler:
 
 ```go
 type PostCommitError struct {
@@ -114,7 +145,7 @@ if errors.As(err, &postCommit) {
     return nil
 }
 if err != nil {
-    return err // nothing was written
+    return err // handle the transaction or COMMIT failure
 }
 ```
 
