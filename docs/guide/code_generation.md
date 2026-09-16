@@ -63,6 +63,8 @@ Regenerate all entities after updating the ORM dependency, even when your model 
 
 The transaction save fix requires generated snapshot and rollback support, including `PrivateSnapshot`, `PrivateRollback` and `PrivateIsSnapshot`. Older generated entities can still compile, but `Save` returns `fluxaorm.ErrEntityNeedsRegeneration` rather than using an entity without this support. Run your generator with the updated dependency, then rebuild and test the application. `Save`, `Transaction` and the public setters keep their existing signatures.
 
+The `GetByID` and `GetByIDs` allocation improvements are emitted into generated providers. Rerun your application generator with the updated ORM dependency to adopt them; changing the dependency alone does not rewrite existing providers. These optimizations preserve method signatures, cache behavior, and missing-row behavior, as well as input order and duplicate handling in `GetByIDs`. Newly generated readers require the updated ORM runtime for numeric scan adapters and Redis command batching; `database/sql` conversions, NULL handling, overflow errors, and the Redis row-cache format are preserved.
+
 ## Output layout
 
 | File | Content |

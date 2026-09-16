@@ -106,9 +106,19 @@ fmt.Println(user.GetName())
 
 1. the [context cache](/guide/context_cache.html) of `ctx` — a hit returns the very pointer you already hold;
 2. the [Redis row cache](/guide/redis_cache.html), when the entity has `orm:"redisCache"` and `ctx` is **not** inside a transaction — a negative entry (row known to be missing) returns `found == false` without touching MySQL;
-3. MySQL: `SELECT <all columns> FROM <table> WHERE ID = ? LIMIT 1` through `ctx.DB(pool)`, so inside a transaction the read sees that transaction's writes. The result (or a negative entry) is written to the Redis row cache and the entity is put in the context cache.
+3. MySQL: one `SELECT <all columns> FROM <table> WHERE ID = <id> LIMIT 1` through `ctx.DB(pool)`, so inside a transaction the read sees that transaction's writes. Generated readers use the decimal `uint64` ID directly; schemas containing MySQL `FLOAT` columns keep the `ID = ?` parameter to preserve floating-point decoding. The result (or a negative entry) is written to the Redis row cache and the entity is put in the context cache.
 
-`GetByID` returns [fake-deleted](/guide/fake_delete.html) rows.
+`GetByID` returns [fake-deleted](/guide/fake_delete.html) rows. Regenerate your providers with the updated ORM dependency to adopt its allocation improvements; see [Upgrading FluxaORM](/guide/code_generation.html#upgrading-fluxaorm).
+
+#### Measuring allocations for one entity
+
+`BenchmarkGetByID1` measures one existing entity using the same fully populated, 27-column fixtures and [service setup](#measuring-allocations-for-10-entities) as `BenchmarkGetByIDs10`. Its cases are `ContextCacheHit` (warm context cache), `RedisCacheHit` (context cache disabled, one `LRANGE`), and `MySQL` (context cache disabled, fixture without Redis caching). With the same generated providers and `FLUXAORM_BENCH_*` environment variables, run from the ORM repository:
+
+```bash
+go test -run '^$' -bench '^BenchmarkGetByID1$' -benchmem -count=5 ./test_generate
+```
+
+Here, `B/op` and `allocs/op` describe fetching **one entity**. The shared setup seeds 10 rows, but each measured call fetches only the first ID. Setup, context creation, warmup, getters, logging, and correctness checks are outside the measurement.
 
 ### MustGetByID
 
@@ -125,6 +135,31 @@ users, err := entities.UserEntityProvider.GetByIDs(ctx, 3, 1, 2, 1)
 ```
 
 Returns the found entities in the order of the (de-duplicated) input, silently skipping ids that do not exist — the result may be shorter than the input. Ids already in the context cache are served from it; the rest are looked up in the Redis row cache with one pipelined round trip (outside transactions), and whatever is still missing is loaded with a single `SELECT ... WHERE ID IN (...)`. Every loaded row is written to both caches; ids that turn out not to exist get a negative cache entry.
+
+Regenerate your providers with the updated ORM dependency to pick up the `GetByIDs` allocation improvements; see [Upgrading FluxaORM](/guide/code_generation.html#upgrading-fluxaorm).
+
+#### Measuring allocations for 10 entities
+
+The ORM repository includes `BenchmarkGetByIDs10` in `test_generate`. It fetches the same 10 existing, unique IDs per operation using the generated `generateEntity` fixture and its matching `generateEntityNoRedis` fixture for MySQL.
+
+| Sub-benchmark | Read path |
+| --- | --- |
+| `ContextCacheHit` | All 10 entities are already in the context cache. |
+| `RedisCacheHit` | The Redis row cache is warm and `DisableContextCache` is enabled. |
+| `MySQL` | `DisableContextCache` is enabled and the fixture has no `redisCache` tag, so every call loads the rows from MySQL. |
+
+First generate the ignored `test_generate/entities` providers from the ORM repository with `go run ./test_generate/genboot`. This helper requires MySQL, Redis, and NATS and applies fixture schema changes. Configure the addresses in `test_generate/genboot/main.go` for disposable test services; they are separate from the benchmark environment variables below.
+
+Run the benchmark from the ORM repository with dedicated MySQL and Redis test databases. The setup creates missing fixture tables and removes its inserted rows and row-cache entries after the run; created tables remain. An incompatible existing fixture schema causes a failure. Set `FLUXAORM_BENCH_MYSQL_DSN` and `FLUXAORM_BENCH_REDIS_ADDR` to your test services; without both, the benchmark is skipped. `FLUXAORM_BENCH_REDIS_DB` defaults to `0`:
+
+```bash
+FLUXAORM_BENCH_MYSQL_DSN='root:root@tcp(localhost:13397)/test' \
+FLUXAORM_BENCH_REDIS_ADDR='localhost:16395' \
+FLUXAORM_BENCH_REDIS_DB=0 \
+go test -run '^$' -bench '^BenchmarkGetByIDs10$' -benchmem -count=5 ./test_generate
+```
+
+`B/op` is the number of allocated bytes and `allocs/op` is the number of heap allocations for the **whole batch of 10 entities**. Context creation, table setup, seeding, correctness checks, and cache warmup are outside the measurement. The benchmark measures `GetByIDs` itself; it does not include decoding deferred until field getters are called. Results depend on the fixture's fields and payload, the read path, and the Go version.
 
 ### Searching
 
