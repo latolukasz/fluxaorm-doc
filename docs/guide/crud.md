@@ -219,6 +219,7 @@ err = ctx.Delete(user) // DELETE FROM `UserEntity` WHERE `ID` = ?
 - `Delete` honours [fake delete](/guide/fake_delete.html): on an entity with a `FakeDelete` field it issues an `UPDATE` that marks the row deleted instead of removing it.
 - `ForceDelete` always removes the row. On an entity without `FakeDelete` it behaves exactly like `Delete`.
 - Deleting an entity that was never saved fails with `ErrEntityNotPersisted` (`entity was never persisted: *entities.UserEntity 12345`). After a successful `Save` inside a transaction, that newly inserted entity can be deleted in the same transaction.
+- All arguments are validated before any of them is marked for deletion. An entity is rejected when it is new (`ErrEntityNotPersisted`), is an [After-handler snapshot](/guide/lifecycle_callbacks.html#when-they-run) (`ErrEntityReadOnly`), needs regeneration (`ErrEntityNeedsRegeneration`), belongs to a `Context` other than the one that created or loaded it, or was generated without delete support. Whichever argument it is, the call returns that error and **no** entity of the batch is modified: nothing is written and none of them stays marked for deletion, so a later `Save` on any of them does not delete its row.
 - After commit, a handle that remains deleted is removed from the context cache before events and handlers run, so a later `GetByID` goes to the database (and, for a hard delete, returns not found). A queued delete does not evict a later restored entity or a replacement handle. Saving the deleted entity again does not re-issue the `DELETE`.
 
 ## Reloading
