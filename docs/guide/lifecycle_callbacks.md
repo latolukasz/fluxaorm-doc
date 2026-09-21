@@ -1,3 +1,7 @@
+---
+description: "FluxaORM lifecycle hooks: synchronous Before insert/update/delete callbacks and post-commit After handlers with change snapshots."
+---
+
 # Lifecycle Callbacks
 
 FluxaORM offers two kinds of hooks around entity writes. **Before** callbacks run synchronously while the SQL statement is being prepared and may still change the entity. **After** handlers run once the rows are durable and are meant for side effects. Both are triggered by `ctx.Save`, `ctx.Delete` and `ctx.ForceDelete`.

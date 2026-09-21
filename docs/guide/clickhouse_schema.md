@@ -1,3 +1,7 @@
+---
+description: "Declaring ClickHouse tables with the FluxaORM table builder and reconciling them with GetClickhouseAlters, with every DDL statement classified as safe or destructive."
+---
+
 # ClickHouse Schema
 
 FluxaORM manages ClickHouse tables the same way it manages MySQL tables: you declare the table with a builder, register it, and `GetClickhouseAlters` returns the DDL needed to bring the live database in line, every statement classified as **safe** or **destructive**. Nothing is executed implicitly. Querying ClickHouse is covered in [ClickHouse Queries](/guide/clickhouse_queries.html); the MySQL counterpart of this page is [Schema Update](/guide/schema_update.html).

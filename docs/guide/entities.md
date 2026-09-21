@@ -1,3 +1,7 @@
+---
+description: "Defining FluxaORM entities as plain Go structs: the ID field, snowflake IDs, table names, entity-level orm tags such as redisCache, redisSearch, cdc and outbox."
+---
+
 # Entities
 
 An entity is a plain Go struct that describes one MySQL table. You write the struct, register it in a [Registry](/guide/registry.html), call `Validate()` and run [code generation](/guide/code_generation.html). The generator produces a typed entity type and a Provider with getters, setters and query methods; the struct itself is never used at runtime.
@@ -148,7 +152,7 @@ type OrderEntity struct {
 }
 ```
 
-Consumers are declared with `fluxaorm.ConsumerDef`, not on the entity. An `outbox` entity requires `fluxaorm.CDCOutboxEntity{}` to be registered on the **same** MySQL pool; `Validate()` otherwise fails with `entity '<name>' is tagged `orm:"outbox"` but fluxaorm.CDCOutboxEntity is not registered; add registry.RegisterEntity(fluxaorm.CDCOutboxEntity{})` or `entity '<name>' is tagged `orm:"outbox"` on mysql pool '<a>' but the outbox table is on pool '<b>'; the outbox row would not be in the same transaction`. See [Entity Events](/guide/entity_events.html) and [Outbox](/guide/outbox.html).
+Consumers are declared with `fluxaorm.ConsumerDef`, not on the entity. A `cdc` entity must be declared by at least one `ConsumerDef`, otherwise `Validate()` fails with `entity '<name>' is tagged `orm:"cdc"` but no consumer declares it, so its events would be published and never read; add it to a ConsumerDef or drop the tag`. An `outbox` entity requires `fluxaorm.CDCOutboxEntity{}` to be registered on the **same** MySQL pool; `Validate()` otherwise fails with `entity '<name>' is tagged `orm:"outbox"` but fluxaorm.CDCOutboxEntity is not registered; add registry.RegisterEntity(fluxaorm.CDCOutboxEntity{})` or `entity '<name>' is tagged `orm:"outbox"` on mysql pool '<a>' but the outbox table is on pool '<b>'; the outbox row would not be in the same transaction`. See [Entity Events](/guide/entity_events.html) and [Outbox](/guide/outbox.html).
 
 ::: warning Migration note
 The old `orm:"dirty=..."` tag is rejected at `Validate()`: `entity '<name>' uses `orm:"dirty=..."`, which no longer exists; tag it `orm:"cdc"` and declare the entity on a fluxaorm.ConsumerDef instead`.

@@ -1,3 +1,7 @@
+---
+description: "Configuring FluxaORM connection pools for MySQL, Redis, ClickHouse and NATS: options, DSN parsing, defaults, Sentinel and NATS authentication."
+---
+
 # Data Pools
 
 This page describes how the four kinds of connection pools - MySQL, Redis, ClickHouse and NATS - are configured, what their options mean and what defaults apply.

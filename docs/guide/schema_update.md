@@ -1,3 +1,7 @@
+---
+description: "Updating the MySQL schema with FluxaORM: GetAlters returns safe and destructive alters derived from your entities, which you review and execute yourself."
+---
+
 # Schema Update
 
 FluxaORM derives the MySQL schema from the registered entities and computes the statements needed to bring the live database in line with it. Nothing is executed implicitly: `GetAlters` returns a plan, every statement is classified as **safe** or **destructive**, and your deploy code decides what to run and when.
@@ -89,7 +93,7 @@ func SplitAlters(in []Alter) (safe, destructive []Alter)
 | `AlterKindAddIndex` | `add_index` | 20 | safe (destructive when it indexes a deferred column) |
 | `AlterKindAddUniqueIndex` | `add_unique_index` | 20 | destructive |
 | `AlterKindRebuildIndex` | `rebuild_index` | 30 | destructive |
-| `AlterKindModifyTable` | `modify_table` | 35 | (ClickHouse only) |
+| `AlterKindModifyTable` | `modify_table` | 35 | (ClickHouse and NATS alters only) |
 | `AlterKindChangeColumn` | `change_column` | 40 | destructive |
 | `AlterKindDropForeignKey` | `drop_foreign_key` | 45 | destructive |
 | `AlterKindDropIndex` | `drop_index` | 50 | destructive |

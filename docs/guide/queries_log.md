@@ -1,3 +1,7 @@
+---
+description: "Logging every MySQL, Redis, ClickHouse and NATS operation executed through a FluxaORM Context with per-context log handlers and query debug output."
+---
+
 # Queries Log
 
 Every MySQL query, Redis command, ClickHouse query and NATS operation executed through a `fluxaorm.Context` can be delivered to a log handler. Logging is configured **per context**: register a handler on the context you want to observe, and every context created from it with `Clone()` / `CloneWithContext()` inherits the same handlers. Contexts created directly from the engine are not affected.
@@ -110,7 +114,7 @@ Newlines in SQL are replaced with spaces.
 | `LOCK OBTAIN` | `LOCK OBTAIN <key> TTL <ttl> WAIT <waitTimeout>`; `miss="TRUE"` when the lock was not obtained |
 | `LOCK RELEASE` | `LOCK RELEASE <key>`; `miss="TRUE"` when the lock was no longer held |
 | `LOCK TTL` | `LOCK TTL <key>` |
-| `LOCK REFRESH` | `LOCK REFRESH <key> <ttl>`; `miss="TRUE"` when the lock was lost |
+| `LOCK REFRESH` | `LOCK REFRESH <key> <ttl>` where `<ttl>` is the TTL passed to `Obtain`, not the new one; `miss="TRUE"` when the lock was lost |
 
 `miss="TRUE"` is also set on `get` when the key is absent, on `hget` when the field is absent, on `mget` / `hmget` when any value is `nil`, and on `ft.info` when the index does not exist. `GetSet` logs its underlying `get` and (on a miss) `set`; `IncrWithExpire` logs a single `incr`. `XReadGroup` is never logged.
 

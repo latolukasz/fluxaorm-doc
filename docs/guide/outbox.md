@@ -1,3 +1,7 @@
+---
+description: "The FluxaORM transactional outbox: orm:\"cdc;outbox\" writes the change event in the same MySQL transaction as the row, with a relay that republishes missed events."
+---
+
 # Transactional Outbox
 
 An entity tagged `orm:"cdc"` publishes its [change event](/guide/entity_events.html) **after** the database commit. If NATS is unreachable in that moment the rows are durable but the event is gone: `Save` returns a `*PostCommitError` and nothing will publish the event later. The outbox closes that gap. With `orm:"cdc;outbox"` every write also inserts a row into the `cdc_outbox` table **inside the write's own transaction**; a relay you run on a schedule republishes any row whose event never made it onto the stream, and JetStream deduplication makes the republish a no-op for consumers that already got it.

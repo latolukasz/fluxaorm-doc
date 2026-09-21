@@ -1,3 +1,7 @@
+---
+description: "The FluxaORM Engine: validated result of a Registry that owns pools and schemas, creates Contexts, generates snowflake IDs and registers after-write handlers."
+---
+
 # Engine
 
 The `Engine` is the validated, read-only result of a [Registry](/guide/registry.html). It owns the connection pools, the entity schemas and the messaging topology, and it is the factory for the [Context](/guide/context.html) objects every data operation needs.

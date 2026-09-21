@@ -1,3 +1,7 @@
+---
+description: "fluxaorm.Context explained: per-request unit of work with identity map, transaction, pipelines, query loggers, metadata, Clone and CloneWithContext."
+---
+
 # Context
 
 `fluxaorm.Context` is the handle every FluxaORM operation takes as its first argument. It bundles a standard `context.Context`, a reference to the [Engine](/guide/engine.html), and per-unit-of-work state: the identity map, the current transaction, pending cache invalidations, pipelines, query loggers and metadata.

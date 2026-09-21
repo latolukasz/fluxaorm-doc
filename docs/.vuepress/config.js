@@ -22,6 +22,10 @@ export default defineUserConfig({
     searchPlugin({})
   ],
   theme: defaultTheme({
+    hostname: 'https://fluxaorm.dev',
+    themePlugins: {
+      seo: { canonical: 'https://fluxaorm.dev' },
+    },
     logo: '/logo-small2.svg',
     logoDark: '/logo-small-dark2.svg',
     repo: 'https://github.com/latolukasz/fluxaorm',

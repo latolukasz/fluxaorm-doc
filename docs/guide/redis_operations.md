@@ -1,3 +1,7 @@
+---
+description: "Using the FluxaORM RedisCache client: registering Redis pools, keys, hashes, lists, sets, streams, scripts and the RedisPipeLine."
+---
+
 # Redis Operations
 
 FluxaORM wraps [go-redis](https://github.com/redis/go-redis) in its own `RedisCache` client. Every command executed through it is timed, reported to the [query log](/guide/queries_log.html) and to [metrics](/guide/metrics.html), and uses the `context.Context` carried by the `fluxaorm.Context` you pass in.
@@ -95,7 +99,7 @@ The value returned by `provider` is encoded with **msgpack** before it is stored
 ```go
 n, err := r.LPush(ctx, "queue", "a", "b")
 n, err = r.RPush(ctx, "queue", "c")
-v, err := r.LPop(ctx, "queue")
+v, err := r.LPop(ctx, "queue")                         // err == redis.Nil on an empty list
 v, found, err := r.RPop(ctx, "queue")                  // found == false on empty list
 n, err = r.LLen(ctx, "queue")
 items, err := r.LRange(ctx, "queue", 0, -1)
@@ -198,7 +202,7 @@ exists, err := r.ScriptExists(ctx, sha)
 res, exists, err = r.EvalSha(ctx, sha, []string{"k"})
 ```
 
-`EvalSha` returns `(res any, exists bool, err error)`. When Redis rejects the SHA, the client checks `ScriptExists`: if the script is simply not loaded you get `(nil, false, nil)` so you can fall back to `ScriptLoad` + retry; any other error is returned as `err`.
+`EvalSha` returns `(res any, exists bool, err error)`. When `EVALSHA` fails, the client checks `ScriptExists`: if the script is simply not loaded you get `(nil, false, nil)` so you can fall back to `ScriptLoad` + retry; if the `ScriptExists` lookup itself fails that error is returned. When the script **is** loaded but the `EVALSHA` call failed (e.g. a runtime error inside the script), the call returns `(nil, true, nil)` -- the script error is not propagated.
 
 ## Redis Search
 
@@ -271,6 +275,8 @@ n, err := count.Result()        // 1, nil
 | `LPush(key string, values ...any)` | -- |
 | `RPush(key string, values ...any)` | -- |
 | `LRange(key string, start, stop int64)` | `*PipeLineSlice` -- `Result() ([]string, error)` |
+| `LRangeValue(key string, start, stop int64)` | `PipeLineSlice` by value (same `Result()`); used by generated code to avoid one allocation per key |
+| `LRangeBatchInto(results []PipeLineSlice, keys []string, start, stop int64)` | -- ; queues one `LRANGE` per key and fills the caller-owned `results` slice (must have `len(keys)` elements, panics otherwise) |
 | `HSet(key string, values ...any)` | -- |
 | `HDel(key string, values ...string)` | -- |
 | `HIncrBy(key, field string, incr int64)` | `*PipeLineInt` -- `Result() (int64, error)` |
@@ -286,7 +292,7 @@ Pipelines created on a context are tied to that context's unit of work:
 
 - `ctx.Save(...)` executes **all pipelines registered on the context that have not been executed yet**, after the rows are written -- outside a transaction immediately after the SQL statements, inside `ctx.Transaction()` only after the commit succeeds. Generated code relies on this to publish Redis cache and Redis Search writes post-commit.
 - When a transaction is rolled back, every pending pipeline is **discarded** without being sent.
-- `Exec` drains a pipeline, so calling it yourself is always safe; if you never call it, the next `Save` on the same context will.
+- `Exec` drains a pipeline, so calling it yourself is always safe; if you never call it, the next `Save` on the same context will. A `Save` called with no entities returns immediately and leaves the pipelines untouched.
 
 This means you can stage Redis writes that must only become visible when the surrounding transaction commits:
 

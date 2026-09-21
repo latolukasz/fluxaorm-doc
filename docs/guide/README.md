@@ -1,3 +1,7 @@
+---
+description: "Introduction and quick start for FluxaORM v2, a code-generation-based Go ORM for MySQL and Redis with ClickHouse queries and NATS JetStream events, consumers and tasks."
+---
+
 # Introduction
 
 FluxaORM is a **code-generation-first** ORM for Go, purpose-built for [MySQL](https://www.mysql.com/) and [Redis](https://redis.io/) 8.2+, with query-only [ClickHouse](https://clickhouse.com/) support for analytics and [NATS JetStream](https://nats.io/) for entity change events, consumers and background tasks. Instead of relying on runtime reflection to map structs to database rows, FluxaORM generates fully typed Go code from your entity definitions — giving you compile-time safety, zero-reflection data access, and built-in dirty tracking.

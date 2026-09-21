@@ -1,9 +1,15 @@
 {
-  "routes": [
+  "headers": [
     {
-      "src": "/assets/(.*)",
-      "headers": { "cache-control": "max-age=31536000" },
-      "dest": "/assets/$1"
+      "source": "/assets/(.*)",
+      "headers": [{ "key": "cache-control", "value": "max-age=31536000" }]
     }
+  ],
+  "redirects": [
+    { "source": "/guide/local_cache.html", "destination": "/guide/context_cache.html", "permanent": true },
+    { "source": "/guide/kafka.html", "destination": "/guide/nats.html", "permanent": true },
+    { "source": "/guide/debezium.html", "destination": "/guide/entity_events.html", "permanent": true },
+    { "source": "/guide/async_flush.html", "destination": "/guide/crud.html", "permanent": true },
+    { "source": "/guide/entity_schema.html", "destination": "/guide/entities.html", "permanent": true }
   ]
 }

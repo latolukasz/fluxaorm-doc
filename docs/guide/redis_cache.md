@@ -1,3 +1,7 @@
+---
+description: "The FluxaORM Redis row cache: invalidate-on-write caching for GetByID and GetByIDs, key layout, TTL, cached unique indexes and cache clearing."
+---
+
 # Redis Cache
 
 The Redis row cache keeps a copy of entity rows in Redis so that `GetByID` and `GetByIDs` can skip MySQL. It is an **invalidate-on-write** cache: writes only delete keys, reads fill them. This page also covers the closely related cached unique index lookups.

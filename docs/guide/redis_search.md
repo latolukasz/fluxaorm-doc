@@ -1,3 +1,7 @@
+---
+description: "Indexing FluxaORM entities in Redis Search (FT.SEARCH): searchable and sortable tags, index maintenance on Save, typed queries and reindexing."
+---
+
 # Redis Search
 
 [Search](/guide/search.html) runs against MySQL. For high-traffic filtering and sorting FluxaORM can additionally index entities in the Redis Search engine (`FT.*` commands): every searchable entity row is mirrored as a Redis hash, an `FT.SEARCH` query returns matching ids, and the entities are then loaded through the regular caches with `GetByIDs`.
@@ -228,6 +232,8 @@ All three methods run `FT.SEARCH <index> <query> NOCONTENT LIMIT ... [SORTBY ...
 func (p productEntityProvider) SearchManyInRedis(ctx fluxaorm.Context, query *fluxaorm.RedisSearchQuery) ([]*entities.ProductEntity, error)
 ```
 
+Returns `nil, nil` when no document matches.
+
 ```go
 products, err := entities.ProductEntityProvider.SearchManyInRedis(ctx,
     fluxaorm.NewRedisSearchQuery().
@@ -285,6 +291,8 @@ if !found {
 ## Raw FT Commands
 
 The Redis pool exposes the underlying commands when you need them directly: `engine.Redis(pool).FTCreate(...)`, `FTDrop(ctx, index, dropDocuments)`, `FTList(ctx)`, `FTInfo(ctx, index)` and `FTSearch(ctx, index, query, options)`. See [Redis Operations](/guide/redis_operations.html).
+
+For a raw `FTSearch` against your own index there is also the untyped, column-name based builder `fluxaorm.NewRedisSearchWhere()`. It produces the same syntax as the typed descriptors (`Float64Range/Min/Max/Equal`, `Int64...`, `Uint64...`, `Tag(field, values...)`, `Text(field, text)`, `Bool(field, value)`, `SortBy(field, ascending)`); `String()` returns the query (`*` when empty) and `GetSearchOptions(offset, count)` the matching `*redis.FTSearchOptions`. The generated `Search*InRedis` methods accept only `*RedisSearchQuery`.
 
 ## Summary
 

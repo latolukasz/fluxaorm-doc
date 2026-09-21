@@ -1,3 +1,7 @@
+---
+description: "FluxaORM consumers: declare a ConsumerDef, generate a typed consumer with per-entity and per-task handlers, run the fetch loop and replay events."
+---
+
 # Consumers
 
 A consumer is a named, durable JetStream subscription that FluxaORM drives for you. You declare it once in the registry (`ConsumerDef`), the code generator emits a typed builder for it, and your application registers handlers and owns the fetch loop. There are two kinds, sharing one declaration and one runtime:

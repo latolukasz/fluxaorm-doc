@@ -1,3 +1,7 @@
+---
+description: "Prometheus metrics in FluxaORM for MySQL, Redis, ClickHouse, NATS and consumers: enabling them, metric names, labels and buckets."
+---
+
 # Metrics
 
 FluxaORM exposes Prometheus metrics for MySQL queries, Redis commands, ClickHouse queries, NATS operations and stream consumers. Metrics are disabled by default and cost nothing until you enable them.

@@ -1,3 +1,7 @@
+---
+description: "Running raw SQL against ClickHouse pools registered in FluxaORM: Exec, QueryRow, Query, options, logging and metrics."
+---
+
 # ClickHouse Queries
 
 FluxaORM can hold ClickHouse connection pools next to MySQL and Redis and run raw SQL on them. ClickHouse is a query-only integration: there are no ClickHouse entities, and `Save`, `Transaction` and the pipelines never touch it. Table definitions and alters are covered in [ClickHouse Schema](/guide/clickhouse_schema.html).

@@ -1,3 +1,7 @@
+---
+description: "Running raw SQL on FluxaORM MySQL pools: Exec, QueryRow, Query, manual transactions and the DatabasePipeline for batching statements."
+---
+
 # MySQL Queries
 
 Besides entities, FluxaORM lets you run raw SQL against any registered MySQL pool. This page covers the two ways to obtain a database handle, the `Exec`/`QueryRow`/`Query` methods, manual transactions, and the `DatabasePipeline` for batching statements.

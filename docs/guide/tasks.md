@@ -1,3 +1,7 @@
+---
+description: "Background tasks in FluxaORM: dispatch plain Go structs onto JetStream queues with a retry ladder, idempotency keys and a job_runs audit table."
+---
+
 # Tasks and Job Runs
 
 A task is a unit of background work: a plain Go struct (the payload) that is dispatched onto a **queue**, stored on the `FLUXA_TASK` JetStream stream, and handled by the one [consumer](/guide/consumers.html) that drains that queue. Every dispatch also writes a row to the `job_runs` table, so each task's attempts and outcome are queryable from the database - the run history is the reason to use tasks instead of publishing raw NATS messages.
@@ -32,6 +36,12 @@ type Subjected interface {
 ```
 
 `Queue()` and `Subject()` are probed on both value and pointer receivers. `Subjected` is a full override of the task's wire subject; its one real use is pinning the old subject across a Go rename, because messages already on the stream carry the old name. The override must stay under `fluxa.task.`.
+
+```go
+func TaskNameFor[T any]() TaskName // TaskNameFor[tasks.SendWelcomeEmail]() == "SendWelcomeEmail"
+```
+
+`TaskNameFor` derives the wire name from the type (pointer types are dereferenced) exactly as registration does, so code that is generic over a task never has to repeat the name as a string.
 
 ### Registration
 

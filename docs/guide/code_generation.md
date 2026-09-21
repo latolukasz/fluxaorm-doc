@@ -1,3 +1,7 @@
+---
+description: "What fluxaorm.Generate() emits: typed Providers, Entities with dirty tracking, typed field descriptors, enums package, consumers, and how to run the generator."
+---
+
 # Code Generation
 
 FluxaORM uses no reflection at runtime. You describe entities as plain Go structs (see [Entities](/guide/entities.html)), register them in a `Registry`, and run `fluxaorm.Generate()`. The generator emits one Go file per entity containing a typed **Provider** (loading, searching, factory and metadata methods) and a typed **Entity** (getters, setters, dirty tracking and the SQL it needs to persist itself), plus a shared `enums` package. This page is a reference for what is generated and how to call it.
@@ -51,7 +55,7 @@ What `Generate` does, in order:
 
 1. Checks the output directory: it must be non-empty (`output directory is empty`), exist (`output directory does not exist: <path>`), be a directory and be writable.
 2. Walks up from the output directory until it finds a `go.mod` and reads its `module` line. The import path of the generated `enums` package is `<module>/<relative path of the output dir>/enums`, so the output directory must live inside a Go module.
-3. **Deletes every regular file in the output directory**, whatever its extension. Sub-directories (such as `enums/`) are kept, but the enum files inside are rewritten. Never put hand-written files in the output directory.
+3. **Deletes every regular file in the output directory**, whatever its extension. Sub-directories (such as `enums/`) are kept: the file of every enum still in use is rewritten, but a file left over from an enum that no longer exists is not removed. Never put hand-written files in the output directory.
 4. Writes one file per registered entity, then `providers.go`, then the consumer files when consumers or tasks are registered.
 5. Runs every file through `go/format`.
 
@@ -234,7 +238,9 @@ func (e *UserEntity) GetUpdatedAt() time.Time
 func (e *UserEntity) SetUpdatedAt(value time.Time) *UserEntity
 ```
 
-Methods whose name starts with `Private` (`PrivateFlush`, `PrivateFlushed`, `PrivateSnapshot`, `PrivateRollback`, `PrivateAdvance`, `PrivateIsSnapshot`, `PrivateIsDeleted`, `PrivateDatabasePool`, `PrivateReload`, `PrivateDelete`, `PrivateForceDelete` - only on `FakeDelete` entities, `PrivateFlushEvent`, `PrivateGetDatabaseBind`, `PrivateCacheIndex`, `PrivateIsNew`, `PrivateContext`) implement the `fluxaorm.Entity` interface or internal capabilities used by `ctx.Save`, `ctx.Delete`, `ctx.Reload` and transactions. They are exported only because the ORM lives in another package; never call them yourself.
+The `redisCachePrefix`, `redisCacheStamp` and `redisCacheTTL` provider fields and the entity's `originRedisValues` exist only for entities tagged `orm:"redisCache"`; an entity that only declares `CachedUniqueIndexes()` gets `redisCachePrefix` alone. Entities with `searchable` fields additionally carry `redisSearchCode`, `redisSearchIndex`, `redisSearchPrefix` and a `FieldsRedisSearch` descriptor struct.
+
+Methods whose name starts with `Private` (`PrivateFlush`, `PrivateFlushed`, `PrivateSnapshot`, `PrivateRollback`, `PrivateAdvance`, `PrivateIsSnapshot`, `PrivateIsDeleted`, `PrivateDatabasePool`, `PrivateReload`, `PrivateDelete`, `PrivateForceDelete` (the latter only on `FakeDelete` entities), `PrivateFlushEvent`, `PrivateGetDatabaseBind`, `PrivateCacheIndex`, `PrivateIsNew`, `PrivateContext`) implement the `fluxaorm.Entity` interface or internal capabilities used by `ctx.Save`, `ctx.Delete`, `ctx.Reload` and transactions. They are exported only because the ORM lives in another package; never call them yourself.
 
 ## The Provider
 

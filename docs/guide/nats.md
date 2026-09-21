@@ -1,3 +1,7 @@
+---
+description: "NATS JetStream in FluxaORM: pool configuration, authentication, stream and consumer builders, publishing, fetching and stream alters."
+---
+
 # NATS and JetStream
 
 FluxaORM uses [NATS JetStream](https://docs.nats.io/nats-concepts/jetstream) as its messaging transport. Three features are built on top of it:
@@ -270,6 +274,7 @@ for {
 ```
 
 - `Consumer(name)` knows the durables registered with `RegisterNatsConsumer` and the ones declared through [`ConsumerDef`](/guide/consumers.html). `MustConsumer` panics instead of returning the error; `ConsumerNames()` lists them (unsorted).
+- `GetSettings()` returns the registered definition: `Name`, `FilterSubjects []string`, `AckWait`, `MaxAckPending`, `MaxDeliver` and `DeliverPolicy` (a `ConsumerDef` durable leaves `DeliverPolicy` at its zero value, `DeliverAllPolicy`).
 - On the first `Fetch` the durable is located by scanning every stream on the server; if none has it the batch error is `nats pool '%s': durable consumer '%s' not found in any stream`. Run `GetNatsAlters` first.
 - A fetch that times out with no messages is an idle poll, not an error: `batch.Error()` is `nil` and `batch.IsEmpty()` is `true`.
 - `NatsBatch` offers `Records() []*NatsMessage`, `EachRecord(func(*NatsMessage))`, `EachError(func(error))`, `Error() error` and `IsEmpty() bool`.

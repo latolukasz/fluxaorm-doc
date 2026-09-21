@@ -1,3 +1,7 @@
+---
+description: "FluxaORM transactions: ctx.Transaction with lazy per-pool BEGIN, nesting, rollback-only, post-commit work, PostCommitError and pipelines inside transactions."
+---
+
 # Transactions
 
 `ctx.Save` with several entities already commits them together. When the writes are spread over several calls, or interleaved with reads and raw SQL, wrap them in `ctx.Transaction`.
@@ -69,7 +73,7 @@ Setters always compare against the latest successful save. For an existing entit
 `BEGIN` is lazy and per pool: the transaction for a MySQL pool is opened by the first write to that pool. A `fn` that only reads never opens one.
 
 ::: warning Lazy BEGIN and reads
-Before the first `Save` on a pool, `ctx.DB(pool)` still returns the plain pool and reads run in autocommit mode. If you need `SELECT ... FOR UPDATE` semantics, obtain the locks with raw SQL after the first write, or use a [distributed lock](/guide/distributed_lock.html).
+Before the first `Save` on a pool, `ctx.DB(pool)` still returns the plain pool and reads run in autocommit mode. `ctx.DatabasePipeLine(pool).Exec(ctx)` also opens the pool's transaction (see [MySQL Queries](/guide/mysql_queries.html#databasepipeline)). If you need `SELECT ... FOR UPDATE` semantics, obtain the locks with raw SQL after the first write, or use a [distributed lock](/guide/distributed_lock.html).
 :::
 
 When writes hit several pools, each pool gets its own transaction and they are committed in the order they were opened. If a later `COMMIT` fails after an earlier one succeeded, the error is `commit failed on pool "<pool>" after pools [<pools>] already committed: <cause>` — there is no cross-pool atomicity. Entities from already committed pools keep their saved baselines; rollback restores only entities belonging to pools that did not commit. Reconcile the partially committed operation before retrying.

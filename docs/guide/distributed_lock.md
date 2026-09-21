@@ -1,3 +1,7 @@
+---
+description: "Redis-backed distributed locks in FluxaORM: Obtain, Refresh, TTL and Release with retry strategy, logging and metrics."
+---
+
 # Distributed Lock
 
 A `sync.Mutex` only protects a resource inside one process. When several instances of your application must coordinate, FluxaORM provides a distributed lock backed by Redis (implemented with [bsm/redislock](https://github.com/bsm/redislock)). Every instance that shares the same Redis pool can use it.
@@ -158,7 +162,7 @@ Returned by `engine.Redis(poolCode).GetLocker()`.
 
 | Method | Description |
 |--------|-------------|
-| `Release(ctx Context)` | Releases the lock. Idempotent: the second and later calls do nothing, and releasing a lock that already expired is silently ignored |
+| `Release(ctx Context)` | Releases the lock. Idempotent: the second and later calls do nothing, and releasing a lock that already expired is silently ignored. The `DEL` is sent with a background context, so it still runs when `ctx.Context()` is already cancelled |
 | `TTL(ctx Context) (time.Duration, error)` | Remaining lifetime. `0` when the lock is not held any more |
 | `Refresh(ctx Context, ttl time.Duration) (bool, error)` | Sets the remaining lifetime to `ttl`. Returns `false, nil` when the lock was lost or already released |
 

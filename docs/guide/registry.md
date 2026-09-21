@@ -1,3 +1,7 @@
+---
+description: "How to configure FluxaORM with the Registry: register MySQL, Redis, ClickHouse and NATS pools, entities, streams, consumers and tasks, load YAML config and call Validate()."
+---
+
 # Registry
 
 The `Registry` is where FluxaORM is configured. You register connection pools (MySQL, Redis, ClickHouse, NATS), entity structs, messaging topology (streams, consumers, tasks), options and metrics, then call `Validate()` once to turn all of it into an immutable [Engine](/guide/engine.html).
@@ -305,7 +309,7 @@ if err := fluxaorm.Generate(engine, "./entities"); err != nil {
 }
 ```
 
-Pool codes referenced by entity tags must still be *registered* (with any DSN); they just do not have to be reachable. The outbox rules, registry options and metrics are not applied on this path. See [Code Generation](/guide/code_generation.html).
+Pool codes referenced by entity tags must still be *registered* (with any DSN); they just do not have to be reachable. The outbox rules, registry options and metrics are not applied on this path, and ClickHouse table, NATS stream and NATS consumer builders are neither validated nor carried into the `Engine`. See [Code Generation](/guide/code_generation.html).
 
 ## Loading Configuration from YAML
 

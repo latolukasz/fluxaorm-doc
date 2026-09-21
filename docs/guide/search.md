@@ -1,3 +1,7 @@
+---
+description: "Searching FluxaORM entities in MySQL with the type-safe DBQuery builder, typed field descriptors, Where, Pager, SearchOne, SearchMany, SearchManyWithTotal and Count."
+---
+
 # Search
 
 [CRUD](/guide/crud.html) covers loading entities by primary key. This section covers finding entities by their column values with the type-safe query builder `fluxaorm.DBQuery`, sorting, pagination, and the generated `SearchOne`, `SearchMany`, `SearchManyWithTotal` and `Count` methods.
@@ -293,7 +297,7 @@ When the entity declares `CachedUniqueIndexes()`, `SearchOne` inspects `query.Ge
 2. On a miss (or a failed verification) `SELECT ID ... WHERE <cols> = ? LIMIT 1` runs, the id is written back to the key with `fluxaorm.EntityCacheTTL`, and `GetByID` returns the entity.
 3. Inside `ctx.Transaction` Redis is neither read nor written; the `SELECT` runs on the transaction.
 
-Only `GetConditions()` participates in the detection. `FilterWhere`, sort clauses and `WithFakeDeletes()` are ignored on that path, and any non-equality condition (or an extra condition) falls back to the regular `SELECT ID ... LIMIT 1`. The key format and invalidation rules are described in [Redis Cache](/guide/redis_cache.html).
+Only `GetConditions()` participates in the detection: a condition qualifies when it implements `fluxaorm.EqCondition` (`ColumnName()`, `EqValue()`), which `Eq`, `Is` and `IsEmpty()` do and `In`, `Like`, comparisons and `Not()` do not. `FilterWhere`, sort clauses and `WithFakeDeletes()` are ignored on that path, and any non-equality condition (or an extra condition) falls back to the regular `SELECT ID ... LIMIT 1`. The key format and invalidation rules are described in [Redis Cache](/guide/redis_cache.html).
 
 ```go
 // Uses the cached unique index "Email":

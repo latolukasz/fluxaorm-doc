@@ -1,3 +1,7 @@
+---
+description: "Declaring MySQL indexes, unique indexes and Redis-cached unique indexes on FluxaORM entities, and how SearchOne uses them for fast lookups."
+---
+
 # MySQL Indexes
 
 Indexes are declared by implementing small interfaces on the entity struct. FluxaORM creates and maintains them through [schema alters](/guide/schema_update.html), and the generated `SearchOne` uses unique indexes for fast, optionally Redis-cached, lookups.

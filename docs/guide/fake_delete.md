@@ -1,3 +1,7 @@
+---
+description: "Soft delete in FluxaORM: add a FakeDelete bool field to hide rows from searches while keeping them loadable by ID."
+---
+
 # Fake Delete
 
 Fake delete (soft delete) marks rows as deleted instead of removing them. Deleted rows disappear from searches but stay in the table and can still be loaded by id.

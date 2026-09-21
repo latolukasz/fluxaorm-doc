@@ -1,10 +1,14 @@
+---
+description: "Testing with FluxaORM: local Docker services, PrepareTables helpers that reset schema and data, MockDBClient for intercepting SQL and MockLogHandler."
+---
+
 # Testing
 
 FluxaORM tests run against real MySQL, Redis and (optionally) NATS services. The `fluxaorm` package ships helpers that wire a registry to the local Docker services, reset the schema and data between tests, and let you intercept SQL calls and query logs.
 
 ## Local Services
 
-The ORM repository contains `docker/docker-compose.yml` with MySQL 8.0, Redis, ClickHouse and NATS (JetStream enabled). Ports are taken from environment variables; `docker/.env` provides the defaults the test helpers expect:
+The ORM repository contains `docker/docker-compose.yml` with MySQL 8.0, Redis 8 (`Validate()` rejects anything older than 8.2), ClickHouse and NATS (JetStream enabled). Ports are taken from environment variables; `docker/.env` provides the defaults the test helpers expect:
 
 ```
 LOCAL_IP=0.0.0.0

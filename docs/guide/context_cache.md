@@ -1,3 +1,7 @@
+---
+description: "The FluxaORM context cache: a per-Context identity map that returns one pointer per entity ID and never expires within the Context."
+---
+
 # Context Cache
 
 The context cache is the **identity map** of a `fluxaorm.Context`: for every entity type and ID it holds at most one `*Entity`, and every load on that context returns that same pointer. It lives exactly as long as the `Context` and never expires.

@@ -1,3 +1,7 @@
+---
+description: "Every Go field type FluxaORM supports, the exact MySQL column it produces, enums and sets, references, JSON, sub-structs and the generated getters and setters."
+---
+
 # Entity Fields
 
 Every exported field of an entity struct becomes a MySQL column, and code generation emits a typed getter and setter for it: `Name string` produces `GetName() string` and `SetName(value string) *UserEntity`. Setters return the entity so calls can be chained, and fields are never accessed directly.
@@ -269,7 +273,6 @@ Validation rules:
 | `enum` without values needs `enumName` | `enum without values requires enumName in field '<f>' of entity '<e>'` |
 | the referenced name must be defined somewhere | `enum/set '<name>' referenced in '<e>' but no entity defines its values` |
 | two entities may not define different values for one name | `enum/set '<name>' has conflicting values defined in both '<a>' and '<b>', definition must be in only one entity` |
-| an `enum=` list may not be empty | `empty enum not allowed` |
 
 Several entities may repeat the same name with identical values.
 
@@ -296,7 +299,7 @@ product.SetTags(enums.ProductTagsList.Sale, enums.ProductTagsList.Featured)
 tags := product.GetTags() // []enums.ProductTags
 ```
 
-Values are stored sorted and comma-separated. On an optional set, calling the setter with no values stores `NULL` and the getter returns `nil`. Sharing works exactly like enums: `orm:"set;enumName=ProductTags"` (or `enumName=ProductTags`) references the definition; a bare `set` without `enumName` fails with `set without values requires enumName in field '<f>' of entity '<e>'`. Set fields have no typed `Fields` descriptor.
+Values are stored sorted and comma-separated. On an optional set, calling the setter with no values stores `NULL` and the getter returns `nil`. Sharing works like enums, but the field must keep the `set` tag: `orm:"set;enumName=ProductTags"` references the definition, while a bare `enumName=ProductTags` without `set` is treated as an enum reference and produces an `ENUM` column. A bare `set` without `enumName` fails with `set without values requires enumName in field '<f>' of entity '<e>'`. Set fields have no typed `Fields` descriptor.
 
 ## References
 

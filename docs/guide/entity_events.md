@@ -1,3 +1,7 @@
+---
+description: "Entity change events (CDC) in FluxaORM: tag an entity orm:\"cdc\" and every committed insert, update or delete is published once to NATS JetStream."
+---
+
 # Entity Change Events (CDC)
 
 An entity tagged `orm:"cdc"` publishes a change event to [NATS JetStream](/guide/nats.html) every time a row is inserted, updated or deleted through FluxaORM. The event carries the operation, the entity ID and a `before`/`after` snapshot of the columns. [Consumers](/guide/consumers.html) read those events to refresh search indexes, send notifications, keep projections in sync - anything that must react to a change without slowing down the write path.

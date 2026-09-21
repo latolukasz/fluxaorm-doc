@@ -1,3 +1,7 @@
+---
+description: "Creating, loading, updating, deleting and reloading FluxaORM entities: New, Save, GetByID, GetByIDs, Delete, ForceDelete and the persistence contract."
+---
+
 # CRUD Operations
 
 All reads and writes go through the generated code described in [Code Generation](/guide/code_generation.html): the provider loads and creates entities, the entity records what you change, and the `Context` persists it. There is no unit-of-work to flush at the end of a request — `ctx.Save` writes exactly the entities you pass and nothing else.
@@ -238,7 +242,7 @@ if err := ctx.Reload(user); err != nil {
 }
 ```
 
-Entities are processed in order and the first failure stops the loop. Persisted-state and read errors are wrapped as `reload entity <id>: <cause>`. A read-only handler snapshot is rejected directly with `ErrEntityReadOnly`, before any query runs:
+Entities are processed in order and the first failure stops the loop. The three state errors below are wrapped as `reload entity <id>: <cause>`; a MySQL error from the `SELECT` itself is returned unwrapped. A read-only handler snapshot is rejected directly with `ErrEntityReadOnly`, before any query runs:
 
 | Error | Meaning |
 |:------|:--------|
