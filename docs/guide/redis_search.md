@@ -28,7 +28,7 @@ type ProductEntity struct {
 | Go field | Redis Search type | Generated descriptor | Stored hash value |
 |----------|-------------------|----------------------|-------------------|
 | `uint8` .. `uint64`, `*uint8` .. `*uint64` | NUMERIC | `RedisSearchUintField` | decimal |
-| `fluxaorm.Reference[T]` | NUMERIC | `RedisSearchUintField` | referenced id |
+| `fluxaorm.Reference[T]` | TAG | `RedisSearchReferenceField` | referenced id (decimal) |
 | `int8` .. `int64`, `*int8` .. `*int64` | NUMERIC | `RedisSearchIntField` | decimal |
 | `float32`, `float64`, `*float32`, `*float64` | NUMERIC | `RedisSearchNumericField` | `strconv.FormatFloat(v, 'g', -1, 64)` |
 | `bool`, `*bool` | NUMERIC | `RedisSearchNumericField` | `1` / `0` |
@@ -36,6 +36,12 @@ type ProductEntity struct {
 | `string` (plain) | TEXT | `RedisSearchTextField` | raw string |
 | `string` with `enum=` | TAG | `RedisSearchTagField` | enum value |
 | `string` with `set=` | TAG | `RedisSearchTagField` | set value |
+
+References are indexed as TAG, not NUMERIC: Redis Search stores NUMERIC values as float64 (53-bit mantissa), so two snowflake-sized IDs (around `3.7e17`) that differ by less than 64 would collapse to the same number and `Eq` would also match rows pointing at a different entity. A TAG field matches the decimal ID exactly. A `NULL` reference is not stored, so it never matches.
+
+::: warning
+Plain `uint64` (and other integer/float) searchable fields are still NUMERIC and lose precision above 2^53. Do not store snowflake IDs in a plain `uint64` searchable field; declare the field as a `fluxaorm.Reference[T]` instead.
+:::
 
 The `searchable` tag is ignored on `[]uint8` (blob) and JSON struct columns; they are never indexed.
 
@@ -164,7 +170,7 @@ For every search-enabled entity the Provider has a `FieldsRedisSearch` struct wi
 // entities.ProductEntityProvider.FieldsRedisSearch.Price     fluxaorm.RedisSearchNumericField
 // entities.ProductEntityProvider.FieldsRedisSearch.Stock     fluxaorm.RedisSearchUintField
 // entities.ProductEntityProvider.FieldsRedisSearch.Status    fluxaorm.RedisSearchTagField
-// entities.ProductEntityProvider.FieldsRedisSearch.Category  fluxaorm.RedisSearchUintField
+// entities.ProductEntityProvider.FieldsRedisSearch.Category  fluxaorm.RedisSearchReferenceField
 // entities.ProductEntityProvider.FieldsRedisSearch.Discount  fluxaorm.RedisSearchIntField
 // entities.ProductEntityProvider.FieldsRedisSearch.CreatedAt fluxaorm.RedisSearchNumericField
 ```
@@ -174,6 +180,7 @@ For every search-enabled entity the Provider has a `FieldsRedisSearch` struct wi
 | `RedisSearchNumericField` | `Eq(v float64)`, `Gte(v float64)`, `Lte(v float64)`, `Gt(v float64)`, `Lt(v float64)`, `Between(min, max float64)` | `@col:[v v]`, `@col:[v +inf]`, `@col:[-inf v]`, `@col:[(v +inf]`, `@col:[-inf (v]`, `@col:[min max]` |
 | `RedisSearchUintField` | same with `uint64` | as above, but `Lte`/`Lt` use `0` as the lower bound: `@col:[0 v]`, `@col:[0 (v]` |
 | `RedisSearchIntField` | same with `int64` | as `RedisSearchNumericField` |
+| `RedisSearchReferenceField` | `Eq(id uint64)`, `In(ids ...uint64)` | `@col:{id}`; `@col:{...}` with the IDs joined by a pipe character (OR). No range methods. |
 | `RedisSearchTextField` | `Match(text string)` | `@col:<text>` (inserted verbatim, no escaping or quoting) |
 | `RedisSearchTagField` | `In(values ...string)` | `@col:{...}` with the values inside the braces joined by a pipe character (OR) |
 
@@ -186,12 +193,19 @@ f.Stock.Gte(1)                                        // @Stock:[1 +inf]
 f.Price.Between(10.5, 99.99)                          // @Price:[10.5 99.99]
 f.Discount.Lt(0)                                      // @Discount:[-inf (0]
 f.Status.In("active", "pending")                      // @Status:{active|pending}
-f.Category.Eq(category.GetID())                       // @Category:[7 7]
+f.Category.Eq(category.GetID())                       // @Category:{7}
+f.Category.In(7, 12)                                  // @Category:{7|12}
 f.Name.Match("laptop")                                // @Name:laptop
 f.CreatedAt.Gte(float64(since.Unix()))                // time is stored as Unix seconds
 ```
 
 Booleans are stored as `1`/`0`, so filter them with `Eq(1)` / `Eq(0)` on the `RedisSearchNumericField`.
+
+`RedisSearchReferenceField` has no `Gte`/`Lte`/`Gt`/`Lt`/`Between`: ranges over IDs are not meaningful. `sortable` on a reference is allowed, but the TAG value is sorted lexicographically (as a string), not numerically.
+
+::: tip Upgrading from NUMERIC references
+Earlier versions indexed references as NUMERIC and generated `RedisSearchUintField` for them, so `Eq` could match a neighbouring snowflake ID. After upgrading, regenerate the code: range calls on reference descriptors no longer compile and must be replaced with `Eq`/`In`. The field type is part of the index name hash, so `GetRedisSearchAlters` returns a safe `FT.CREATE` for the new index (Redis backfills it asynchronously from the existing hashes, which are unchanged; no `ReindexRedisSearch` is needed) and a destructive `FT.DROPINDEX` for the old index, to run once the rollout finishes. See [Creating and Dropping Indexes](#creating-and-dropping-indexes).
+:::
 
 ::: warning
 `Match` passes the text straight into the query string. Escape Redis Search special characters yourself if the value comes from user input.
